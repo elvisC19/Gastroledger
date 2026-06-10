@@ -36,6 +36,7 @@ import {
   ClipboardList,
   Building,
   Grid,
+  BookOpen,
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -91,6 +92,7 @@ export default function DashboardLayout({
     : [
         { name: 'Panel Principal', href: '/dashboard', icon: LayoutDashboard },
         { name: 'Menú / Carta', href: '/dashboard/menu', icon: Menu },
+        { name: 'Recetas', href: '/dashboard/recipes', icon: BookOpen },
         { name: 'Inventario', href: '/dashboard/inventory', icon: ClipboardList },
         { name: 'Distribución Mesas', href: '/dashboard/tables', icon: Grid },
         { name: 'Reportes y Ventas', href: '/dashboard/reports', icon: History },
