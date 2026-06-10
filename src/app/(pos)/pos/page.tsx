@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/components/providers/auth-provider'
 import { getTables } from '@/app/actions/tables'
 import { getMenuItems } from '@/app/actions/menu'
-import { getOrders, createOrder, completePayment } from '@/app/actions/orders'
+import { getOrders, createOrder, completePayment, updateOrderDetailQuantity } from '@/app/actions/orders'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardHeader, CardTitle, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -376,6 +376,18 @@ export default function PosTerminal() {
     }
   })
 
+  const updateDetailQtyMutation = useMutation({
+    mutationFn: ({ detailId, change }: { detailId: string; change: number }) => updateOrderDetailQuantity(detailId, change),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pos-orders'] })
+      queryClient.invalidateQueries({ queryKey: ['pos-tables'] })
+      toast.success('Cantidad actualizada en la comanda')
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || 'Error al actualizar comanda')
+    }
+  })
+
   // Select first table on load if tables are loaded
   useEffect(() => {
     if (tables.length > 0 && !selectedTableId) {
@@ -504,7 +516,6 @@ export default function PosTerminal() {
   })
   // Calculations
   const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
-  const tax = cartTotal - (cartTotal / 1.18)
 
   if (loadingSession || loadingTables || loadingMenu) {
     return (
@@ -652,14 +663,14 @@ export default function PosTerminal() {
                           setCart([])
                         }
                       }}
-                      className={`h-11 min-w-16 rounded-xl border flex flex-col items-center justify-center transition-all ${
+                      className={`h-11 min-w-16 rounded-xl border flex flex-col items-center justify-center transition-all cursor-pointer ${
                         isSelected
                           ? isOccupied 
-                            ? 'bg-blue-50 border-blue-500 text-blue-700 shadow-sm font-semibold'
-                            : 'bg-emerald-50 border-emerald-500 text-emerald-700 shadow-sm font-semibold'
+                            ? 'bg-blue-50 border-blue-500 text-blue-700 shadow-sm font-bold ring-2 ring-blue-500/25'
+                            : 'bg-emerald-50 border-emerald-500 text-emerald-700 shadow-sm font-bold ring-2 ring-emerald-500/25'
                           : isOccupied
-                            ? 'bg-white border-blue-200 text-blue-600 hover:bg-blue-50/50'
-                            : 'bg-white border-zinc-200 text-emerald-650 hover:bg-zinc-50'
+                            ? 'bg-blue-50/20 border-blue-200 text-blue-600 hover:bg-blue-50/50'
+                            : 'bg-emerald-50/20 border-emerald-200 text-emerald-600 hover:bg-emerald-50/50'
                       }`}
                     >
                       <span className="text-sm font-black">{table.table_number}</span>
@@ -724,14 +735,29 @@ export default function PosTerminal() {
                       onClick={() => addToCart(item)}
                       className="border-zinc-100 bg-white hover:border-amber-500/30 cursor-pointer transition-all shadow-sm hover:shadow-md hover:scale-[1.01] flex flex-col justify-between overflow-hidden group"
                     >
-                      <CardHeader className="p-4 pb-2">
-                        <span className="text-[10px] uppercase tracking-wider text-amber-600 font-bold">
-                          {categoryLabels[item.category] || item.category}
-                        </span>
-                        <CardTitle className="text-sm text-zinc-800 mt-1 font-bold font-[family-name:var(--font-sora)] group-hover:text-zinc-950 line-clamp-1">{item.name}</CardTitle>
-                      </CardHeader>
+                      <div>
+                        {item.image_url ? (
+                          <div className="relative w-full aspect-[4/3] overflow-hidden border-b border-zinc-100 bg-zinc-100">
+                            <img
+                              src={item.image_url}
+                              alt={item.name}
+                              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                            />
+                          </div>
+                        ) : (
+                          <div className="w-full aspect-[4/3] bg-zinc-50/50 flex items-center justify-center border-b border-zinc-100 text-zinc-300">
+                            <UtensilsCrossed className="h-8 w-8 text-zinc-300/80 stroke-[1.5]" />
+                          </div>
+                        )}
+                        <CardHeader className="p-4 pb-2">
+                          <span className="text-[10px] uppercase tracking-wider text-amber-600 font-bold">
+                            {categoryLabels[item.category] || item.category}
+                          </span>
+                          <CardTitle className="text-sm text-zinc-800 mt-1 font-bold font-[family-name:var(--font-sora)] group-hover:text-zinc-950 line-clamp-1">{item.name}</CardTitle>
+                        </CardHeader>
+                      </div>
                       <CardFooter className="p-4 pt-2 flex items-center justify-between border-t border-zinc-50 bg-zinc-50/20">
-                        <span className="text-base font-black text-zinc-900">${item.price.toFixed(2)}</span>
+                        <span className="text-base font-black text-zinc-900">Bs. {item.price.toFixed(2)}</span>
                         <div className="rounded-lg bg-amber-500/10 p-1.5 text-amber-700 border border-amber-500/20 group-hover:bg-amber-500 group-hover:text-black transition-colors">
                           <Plus className="h-3.5 w-3.5" />
                         </div>
@@ -774,11 +800,27 @@ export default function PosTerminal() {
                 {activeOrderForTable.order_details.map((detail) => (
                   <div key={detail.id} className="flex items-center justify-between bg-zinc-50/30 border border-zinc-100 p-3 rounded-xl">
                     <div className="flex-1 pr-2">
-                      <h4 className="text-xs font-bold text-zinc-800">{detail.menu_items?.name}</h4>
-                      <span className="text-[10px] text-zinc-500 font-bold">${Number(detail.price_at_time).toFixed(2)} c/u</span>
+                      <h4 className="text-xs font-bold text-zinc-800 line-clamp-1">{detail.menu_items?.name}</h4>
+                      <span className="text-[10px] text-zinc-500 font-bold">Bs. {Number(detail.price_at_time).toFixed(2)} c/u</span>
                     </div>
-                    <div className="flex items-center space-x-3 shrink-0">
-                      <span className="text-xs font-black text-zinc-900">x{detail.quantity}</span>
+                    <div className="flex items-center space-x-2 shrink-0">
+                      <div className="flex items-center border border-zinc-200 rounded-lg bg-white p-0.5">
+                        <button
+                          onClick={() => updateDetailQtyMutation.mutate({ detailId: detail.id, change: -1 })}
+                          disabled={updateDetailQtyMutation.isPending}
+                          className="p-1 hover:bg-zinc-100 rounded text-zinc-500 hover:text-zinc-900 cursor-pointer disabled:opacity-50"
+                        >
+                          <Minus className="h-3 w-3" />
+                        </button>
+                        <span className="px-1.5 text-xs font-bold text-zinc-700">{detail.quantity}</span>
+                        <button
+                          onClick={() => updateDetailQtyMutation.mutate({ detailId: detail.id, change: 1 })}
+                          disabled={updateDetailQtyMutation.isPending}
+                          className="p-1 hover:bg-zinc-100 rounded text-zinc-500 hover:text-zinc-900 cursor-pointer disabled:opacity-50"
+                        >
+                          <Plus className="h-3 w-3" />
+                        </button>
+                      </div>
                       <span className={`h-2 w-2 rounded-full ${detail.status === 'ready' ? 'bg-emerald-400' : 'bg-zinc-300'}`} title={detail.status === 'ready' ? 'Listo' : 'Cocina'} />
                     </div>
                   </div>
@@ -788,17 +830,9 @@ export default function PosTerminal() {
               {/* Pricing & Checkout */}
               <div className="p-4 border-t border-zinc-150 bg-zinc-50/30 space-y-4">
                 <div className="space-y-1.5 text-xs text-zinc-550">
-                  <div className="flex justify-between">
-                    <span>Subtotal</span>
-                    <span>${(activeOrderForTable.total / 1.18).toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>IGV (18%)</span>
-                    <span>{(activeOrderForTable.total - activeOrderForTable.total / 1.18).toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between border-t border-zinc-200 pt-2 text-sm font-bold text-zinc-755">
+                  <div className="flex justify-between text-sm font-bold text-zinc-755">
                     <span>Total a Pagar</span>
-                    <span className="text-lg text-zinc-900 font-black">${Number(activeOrderForTable.total).toFixed(2)}</span>
+                    <span className="text-lg text-zinc-900 font-black">Bs. {Number(activeOrderForTable.total).toFixed(2)}</span>
                   </div>
                 </div>
 
@@ -844,7 +878,7 @@ export default function PosTerminal() {
                     <div key={item.id} className="flex items-center justify-between bg-zinc-50/50 border border-zinc-100 p-3 rounded-xl">
                       <div className="flex-1 pr-2">
                         <h4 className="text-xs font-bold text-zinc-800 line-clamp-1">{item.name}</h4>
-                        <span className="text-[10px] text-zinc-500 font-bold">${item.price.toFixed(2)} c/u</span>
+                        <span className="text-[10px] text-zinc-500 font-bold">Bs. {item.price.toFixed(2)} c/u</span>
                       </div>
                       <div className="flex items-center space-x-2">
                         <div className="flex items-center border border-zinc-200 rounded-lg bg-white p-0.5">
@@ -876,18 +910,10 @@ export default function PosTerminal() {
 
               {/* Pricing & Submit */}
               <div className="p-4 border-t border-zinc-150 bg-zinc-50/30 space-y-4">
-                <div className="space-y-1.5 text-xs text-zinc-500">
-                  <div className="flex justify-between">
-                    <span>Subtotal</span>
-                    <span>${(cartTotal / 1.18).toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>IGV (18%)</span>
-                    <span>${tax.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between border-t border-zinc-200 pt-2 text-sm font-bold text-zinc-700">
+                <div className="space-y-1.5 text-xs text-zinc-550">
+                  <div className="flex justify-between text-sm font-bold text-zinc-700">
                     <span>Total</span>
-                    <span className="text-lg text-zinc-900 font-black">${cartTotal.toFixed(2)}</span>
+                    <span className="text-lg text-zinc-900 font-black">Bs. {cartTotal.toFixed(2)}</span>
                   </div>
                 </div>
 

@@ -261,3 +261,81 @@ export async function completePayment(orderId: string, amount: number) {
   revalidatePath('/dashboard/inventory')
   return payment
 }
+
+export async function updateOrderDetailQuantity(detailId: string, change: number) {
+  try {
+    const { supabase, businessId } = await checkAuth()
+    if (!businessId) throw new Error('No autorizado')
+
+    // 1. Fetch current details to check parent order business ownership
+    const { data: detail, error: fetchErr } = await supabase
+      .from('order_details')
+      .select('*, orders(*)')
+      .eq('id', detailId)
+      .single()
+
+    if (fetchErr || !detail) throw new Error('Detalle de pedido no encontrado')
+
+    const parentOrder = detail.orders as unknown as { business_id: string; status: string; id: string; table_id: string }
+    if (!parentOrder || parentOrder.business_id !== businessId) {
+      throw new Error('No autorizado para modificar este pedido')
+    }
+
+    const newQuantity = detail.quantity + change
+
+    if (newQuantity <= 0) {
+      // Delete the detail row
+      const { error: deleteErr } = await supabase
+        .from('order_details')
+        .delete()
+        .eq('id', detailId)
+
+      if (deleteErr) throw deleteErr
+    } else {
+      // Update quantity
+      const { error: updateErr } = await supabase
+        .from('order_details')
+        .update({ quantity: newQuantity })
+        .eq('id', detailId)
+
+      if (updateErr) throw updateErr
+    }
+
+    // 2. Recalculate parent order total
+    const { data: allDetails, error: allErr } = await supabase
+      .from('order_details')
+      .select('quantity, price_at_time')
+      .eq('order_id', parentOrder.id)
+
+    if (allErr) throw allErr
+
+    const newTotal = (allDetails || []).reduce((sum, item) => sum + (item.price_at_time * item.quantity), 0)
+
+    if (newTotal === 0) {
+      // If there are no items left, cancel/delete the order and free the table
+      await supabase
+        .from('orders')
+        .update({ status: 'cancelled', total: 0 })
+        .eq('id', parentOrder.id)
+
+      await supabase
+        .from('tables')
+        .update({ status: 'free' })
+        .eq('id', parentOrder.table_id)
+    } else {
+      // Update order total
+      await supabase
+        .from('orders')
+        .update({ total: newTotal })
+        .eq('id', parentOrder.id)
+    }
+
+    revalidatePath('/pos')
+    revalidatePath('/kitchen')
+    return { success: true }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Error al modificar cantidad de plato'
+    console.error('updateOrderDetailQuantity error:', message)
+    throw new Error(message)
+  }
+}

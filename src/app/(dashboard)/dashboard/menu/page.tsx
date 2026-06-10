@@ -282,7 +282,7 @@ export default function MenuManagement() {
               className="border-zinc-100 bg-white shadow-sm relative overflow-hidden transition-all flex flex-col justify-between group hover:border-zinc-300 hover:shadow-md"
             >
               {/* Image slot */}
-              <div className="h-40 w-full bg-zinc-50 border-b border-zinc-100 relative flex items-center justify-center text-slate-650 overflow-hidden">
+              <div className="h-40 w-full bg-zinc-50 border-b border-zinc-100 relative flex items-center justify-center text-zinc-400 overflow-hidden">
                 {item.image_url ? (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img
