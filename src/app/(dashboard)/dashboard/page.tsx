@@ -1,11 +1,10 @@
 'use client'
 
-import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '@/components/providers/auth-provider'
 import { getDashboardAnalytics } from '@/app/actions/analytics'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button, buttonVariants } from '@/components/ui/button'
+import { buttonVariants } from '@/components/ui/button'
 import {
   LineChart,
   Line,
@@ -37,7 +36,6 @@ const COLORS = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ec4899']
 
 export default function BusinessDashboard() {
   const { profile } = useAuth()
-  const [timeRange, setTimeRange] = useState<'today' | 'week' | 'month'>('today')
 
   // Query analytics data from the server action
   const { data, isLoading, isError, error } = useQuery({
@@ -71,10 +69,6 @@ export default function BusinessDashboard() {
   const isEssential = plan === 'essential'
   const isPremium = plan === 'premium'
 
-  // Metric displays depending on selected range
-  const salesValue = timeRange === 'today' ? metrics.todaySales : metrics.monthSales
-  const salesLabel = timeRange === 'today' ? 'Ventas de Hoy' : 'Ventas del Mes'
-
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-12 font-[family-name:var(--font-inter)]">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -85,28 +79,6 @@ export default function BusinessDashboard() {
           <p className="text-sm text-zinc-500 mt-1">
             Resumen comercial y operativo en tiempo real para tu establecimiento.
           </p>
-        </div>
-
-        {/* Range Selector */}
-        <div className="flex space-x-1.5 bg-zinc-100 p-1 rounded-xl border border-zinc-200 self-start">
-          <Button
-            size="sm"
-            onClick={() => setTimeRange('today')}
-            className={`text-xs font-bold rounded-lg h-7 px-3 ${
-              timeRange === 'today' ? 'bg-[#F59E0B] text-black hover:bg-[#D97706]' : 'bg-transparent text-zinc-500 hover:text-zinc-700'
-            }`}
-          >
-            Hoy
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => setTimeRange('month')}
-            className={`text-xs font-bold rounded-lg h-7 px-3 ${
-              timeRange === 'month' ? 'bg-[#F59E0B] text-black hover:bg-[#D97706]' : 'bg-transparent text-zinc-500 hover:text-zinc-700'
-            }`}
-          >
-            Este Mes
-          </Button>
         </div>
       </div>
 
@@ -139,18 +111,37 @@ export default function BusinessDashboard() {
       {/* KPIs Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {/* Sales KPI */}
-        <Card className="bg-white border border-zinc-100 shadow-sm rounded-xl p-6">
+        <Card 
+          className="border rounded-xl p-6"
+          style={{
+            background: 'var(--bg-card, #ffffff)',
+            borderColor: 'var(--border-default, #e4e4e7)',
+            borderWidth: '0.5px',
+            borderStyle: 'solid',
+            boxShadow: 'none',
+            '--accent': '#F59E0B',
+            '--text-dim': '#71717A'
+          } as React.CSSProperties}
+        >
           <CardHeader className="flex flex-row items-center justify-between pb-2 p-0">
-            <span className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
-              {salesLabel}
+            <span 
+              className="text-xs font-semibold uppercase tracking-wide"
+              style={{ color: 'var(--text-dim)' }}
+            >
+              Ingresos de hoy
             </span>
             <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-amber-500/10 text-amber-500">
               <DollarSign className="h-5 w-5" />
             </div>
           </CardHeader>
           <CardContent className="p-0 mt-4">
-            <div className="text-3xl font-bold text-zinc-900 font-[family-name:var(--font-sora)]">${salesValue.toFixed(2)}</div>
-            <p className="text-xs text-zinc-400 mt-1">Actualizado hace segundos</p>
+            <div 
+              className="text-3xl font-bold font-[family-name:var(--font-sora)]"
+              style={{ color: 'var(--accent)' }}
+            >
+              Bs. {metrics.todaySales.toFixed(2)}
+            </div>
+            <p className="text-xs text-zinc-400 mt-1">Actualizado al recargar la página</p>
           </CardContent>
         </Card>
 

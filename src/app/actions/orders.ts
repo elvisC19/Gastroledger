@@ -38,8 +38,7 @@ export async function getOrders(statusFilters?: string[]) {
         order_details (
           *,
           menu_items (name, category)
-        ),
-        profiles (full_name)
+        )
       `)
       .eq('business_id', businessId)
       .order('created_at', { ascending: false })

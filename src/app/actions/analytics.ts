@@ -91,7 +91,10 @@ export async function getDashboardAnalytics() {
 
   // Date constants
   const now = new Date()
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  todayStart.setHours(0, 0, 0, 0)
+  const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  todayEnd.setHours(23, 59, 59, 999)
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime()
 
   // Filter paid orders
@@ -99,7 +102,10 @@ export async function getDashboardAnalytics() {
 
   // KPIs Calculations
   const todaySales = paidOrders
-    .filter(o => new Date(o.created_at).getTime() >= todayStart)
+    .filter(o => {
+      const orderTime = new Date(o.created_at).getTime()
+      return orderTime >= todayStart.getTime() && orderTime <= todayEnd.getTime()
+    })
     .reduce((sum, o) => sum + Number(o.total), 0)
 
   const monthSales = paidOrders

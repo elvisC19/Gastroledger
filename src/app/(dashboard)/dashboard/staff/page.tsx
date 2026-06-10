@@ -212,12 +212,12 @@ export default function StaffManagement() {
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-white">Gestión de Personal</h1>
-          <p className="text-slate-400 mt-1">Configura las credenciales de acceso para tus cajeros, meseros y cocineros.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-zinc-900 font-[family-name:var(--font-sora)]">Gestión de Personal</h1>
+          <p className="text-zinc-500 mt-1">Configura las credenciales de acceso para tus cajeros, meseros y cocineros.</p>
         </div>
         <Button
           onClick={() => setIsCreateOpen(true)}
-          className="bg-emerald-500 text-slate-950 font-bold hover:bg-emerald-600 self-start"
+          className="bg-amber-500 hover:bg-amber-600 text-black font-semibold self-start"
         >
           <Plus className="mr-2 h-4 w-4" /> Agregar Personal
         </Button>
@@ -225,90 +225,90 @@ export default function StaffManagement() {
 
       {/* Overview Cards */}
       <div className="grid gap-4 md:grid-cols-3">
-        <Card className="border-slate-800 bg-slate-900/40 backdrop-blur-sm">
+        <Card className="border-zinc-100 bg-white shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Total Personal</span>
-            <Users className="h-4 w-4 text-emerald-450" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Total Personal</span>
+            <Users className="h-4 w-4 text-emerald-455" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-slate-100">{totalStaff}</div>
-            <p className="text-xs text-slate-500 mt-1">Cuentas activas en local</p>
+            <div className="text-2xl font-bold text-zinc-900 font-[family-name:var(--font-sora)]">{totalStaff}</div>
+            <p className="text-xs text-zinc-400 mt-1">Cuentas activas en local</p>
           </CardContent>
         </Card>
 
-        <Card className="border-slate-800 bg-slate-900/40 backdrop-blur-sm">
+        <Card className="border-zinc-100 bg-white shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Administradores</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Administradores</span>
             <Shield className="h-4 w-4 text-red-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-slate-100">{adminCount}</div>
-            <p className="text-xs text-slate-500 mt-1">Acceso total de configuración</p>
+            <div className="text-2xl font-bold text-zinc-900 font-[family-name:var(--font-sora)]">{adminCount}</div>
+            <p className="text-xs text-zinc-400 mt-1">Acceso total de configuración</p>
           </CardContent>
         </Card>
 
-        <Card className="border-slate-800 bg-slate-900/40 backdrop-blur-sm">
+        <Card className="border-zinc-100 bg-white shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Operativos</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Operativos</span>
             <UserCheck className="h-4 w-4 text-blue-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-slate-100">{staffActive}</div>
-            <p className="text-xs text-slate-500 mt-1">Cajeros, meseros y cocineros</p>
+            <div className="text-2xl font-bold text-zinc-900 font-[family-name:var(--font-sora)]">{staffActive}</div>
+            <p className="text-xs text-zinc-400 mt-1">Cajeros, meseros y cocineros</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Staff Table */}
-      <Card className="border-slate-800 bg-slate-900/40 backdrop-blur-sm">
+      <Card className="border-zinc-100 bg-white shadow-sm">
         <CardHeader>
-          <CardTitle className="text-lg text-slate-200">Equipo de Trabajo</CardTitle>
-          <CardDescription className="text-slate-400">
+          <CardTitle className="text-lg text-zinc-900">Equipo de Trabajo</CardTitle>
+          <CardDescription className="text-zinc-500">
             Controla quién accede a las pantallas de comandas, caja y cocina.
           </CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading ? (
             <div className="flex h-32 items-center justify-center">
-              <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+              <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
             </div>
           ) : isError ? (
-            <div className="rounded-lg bg-red-500/10 p-4 text-center text-sm text-red-400 border border-red-500/20">
+            <div className="rounded-lg bg-red-50 p-4 text-center text-sm text-red-600 border border-red-200">
               Error al cargar el personal: {error.message}
             </div>
           ) : staffList?.length === 0 ? (
-            <div className="flex flex-col items-center justify-center p-8 text-center text-slate-500 text-sm space-y-2 border border-dashed border-slate-800/60 rounded-xl bg-slate-950/20">
-              <Users className="h-8 w-8 text-slate-700 animate-pulse" />
-              <p className="font-semibold text-slate-400">Sin personal registrado</p>
-              <p className="text-xs text-slate-600">No hay personal registrado en este negocio. Registra uno para comenzar.</p>
+            <div className="flex flex-col items-center justify-center p-8 text-center text-zinc-500 text-sm space-y-2 border border-dashed border-zinc-200 rounded-xl bg-zinc-50/50">
+              <Users className="h-8 w-8 text-zinc-300 animate-pulse" />
+              <p className="font-semibold text-zinc-500">Sin personal registrado</p>
+              <p className="text-xs text-zinc-400">No hay personal registrado en este negocio. Registra uno para comenzar.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <Table>
-                <TableHeader className="border-b border-slate-800">
-                  <TableRow className="hover:bg-transparent border-slate-800">
-                    <TableHead className="text-slate-400">Nombre Completo</TableHead>
-                    <TableHead className="text-slate-400">Correo Electrónico</TableHead>
-                    <TableHead className="text-slate-400">Rol asignado</TableHead>
-                    <TableHead className="text-slate-400">Fecha de Ingreso</TableHead>
-                    <TableHead className="text-slate-400 text-right">Acciones</TableHead>
+                <TableHeader className="border-b border-zinc-100">
+                  <TableRow className="hover:bg-transparent border-zinc-100">
+                    <TableHead className="text-zinc-500">Nombre Completo</TableHead>
+                    <TableHead className="text-zinc-500">Correo Electrónico</TableHead>
+                    <TableHead className="text-zinc-500">Rol asignado</TableHead>
+                    <TableHead className="text-zinc-500">Fecha de Ingreso</TableHead>
+                    <TableHead className="text-zinc-500 text-right">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
-                <TableBody className="divide-y divide-slate-800/50">
+                <TableBody className="divide-y divide-zinc-100">
                   {staffList?.map((staff) => {
                     const isSelf = currentUser ? staff.id === currentUser.id : false
                     return (
-                      <TableRow key={staff.id} className="hover:bg-slate-900/20 border-slate-800/50">
-                        <TableCell className="font-semibold text-slate-200">
-                          {staff.full_name} {isSelf && <span className="text-[10px] bg-slate-800 text-slate-450 px-2 py-0.5 rounded-full font-bold ml-1.5 border border-slate-750">tú</span>}
+                      <TableRow key={staff.id} className="hover:bg-zinc-50 border-zinc-100">
+                        <TableCell className="font-semibold text-zinc-900">
+                          {staff.full_name} {isSelf && <span className="text-[10px] bg-zinc-100 text-zinc-500 px-2 py-0.5 rounded-full font-bold ml-1.5 border border-zinc-200">tú</span>}
                         </TableCell>
-                        <TableCell className="text-slate-400">{staff.email}</TableCell>
+                        <TableCell className="text-zinc-500">{staff.email}</TableCell>
                         <TableCell>
                           <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase border ${roleColors[staff.role]}`}>
                             {roleLabels[staff.role]}
                           </span>
                         </TableCell>
-                        <TableCell className="text-slate-455 text-xs">
+                        <TableCell className="text-zinc-500 text-xs">
                           {new Date(staff.created_at).toLocaleDateString('es-PE')}
                         </TableCell>
                         <TableCell className="text-right space-x-1">
@@ -316,7 +316,7 @@ export default function StaffManagement() {
                             variant="ghost"
                             size="icon"
                             onClick={() => handleEditClick(staff)}
-                            className="h-8 w-8 text-slate-455 hover:text-slate-100 hover:bg-slate-800"
+                            className="h-8 w-8 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100"
                           >
                             <Edit2 className="h-3.5 w-3.5" />
                           </Button>
@@ -327,8 +327,8 @@ export default function StaffManagement() {
                             disabled={isSelf}
                             className={`h-8 w-8 transition-all ${
                               isSelf
-                                ? 'text-slate-700 cursor-not-allowed opacity-40'
-                                : 'text-slate-455 hover:text-red-400 hover:bg-red-500/10'
+                                ? 'text-zinc-300 cursor-not-allowed opacity-40'
+                                : 'text-zinc-400 hover:text-red-650 hover:bg-red-50'
                             }`}
                             title={isSelf ? 'No puedes eliminarte a ti mismo' : 'Eliminar empleado'}
                           >
@@ -347,10 +347,10 @@ export default function StaffManagement() {
 
       {/* DIALOG: CREATE STAFF */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="border-slate-800 bg-slate-900 text-slate-100">
+        <DialogContent className="border-zinc-100 bg-white text-zinc-900">
           <DialogHeader>
             <DialogTitle>Registrar Nuevo Empleado</DialogTitle>
-            <DialogDescription className="text-slate-400">
+            <DialogDescription className="text-zinc-500">
               Registra la cuenta con la que el empleado ingresará a Gastroledger.
             </DialogDescription>
           </DialogHeader>
@@ -362,7 +362,7 @@ export default function StaffManagement() {
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder="Ej. Ana Gómez"
-                className="border-slate-800 bg-slate-950/50"
+                className="border-zinc-200 bg-zinc-50"
               />
             </div>
 
@@ -374,7 +374,7 @@ export default function StaffManagement() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="ana@comercio.com"
-                className="border-slate-800 bg-slate-950/50"
+                className="border-zinc-200 bg-zinc-50"
               />
             </div>
 
@@ -387,7 +387,7 @@ export default function StaffManagement() {
                   value={pass}
                   onChange={(e) => setPass(e.target.value)}
                   placeholder="Mín. 6 caracteres"
-                  className="border-slate-800 bg-slate-950/50"
+                  className="border-zinc-200 bg-zinc-50"
                 />
               </div>
               <div className="space-y-1">
@@ -398,7 +398,7 @@ export default function StaffManagement() {
                   value={confirmPass}
                   onChange={(e) => setConfirmPass(e.target.value)}
                   placeholder="Repite contraseña"
-                  className="border-slate-800 bg-slate-950/50"
+                  className="border-zinc-200 bg-zinc-50"
                 />
               </div>
             </div>
@@ -409,10 +409,10 @@ export default function StaffManagement() {
                 value={role}
                 onValueChange={(val) => { if (val) setRole(val as 'admin' | 'cashier' | 'waiter' | 'cook') }}
               >
-                <SelectTrigger className="border-slate-800 bg-slate-950/50">
+                <SelectTrigger className="border-zinc-200 bg-zinc-50">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="border-slate-800 bg-slate-900 text-slate-100">
+                <SelectContent className="border-zinc-200 bg-white text-zinc-900">
                   <SelectItem value="waiter">Mesero</SelectItem>
                   <SelectItem value="cashier">Cajero</SelectItem>
                   <SelectItem value="cook">Cocinero</SelectItem>
@@ -421,19 +421,19 @@ export default function StaffManagement() {
               </Select>
             </div>
 
-            <DialogFooter className="pt-4 border-t border-slate-800/60">
+            <DialogFooter className="pt-4 border-t border-zinc-100">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setIsCreateOpen(false)}
-                className="border-slate-800 text-slate-400 hover:bg-slate-850"
+                className="border-zinc-200 text-zinc-600 hover:bg-zinc-50"
                 disabled={createMutation.isPending}
               >
                 Cancelar
               </Button>
               <Button
                 type="submit"
-                className="bg-emerald-500 text-slate-950 font-bold hover:bg-emerald-600"
+                className="bg-amber-500 hover:bg-amber-600 text-black font-semibold"
                 disabled={createMutation.isPending}
               >
                 {createMutation.isPending ? (
@@ -452,10 +452,10 @@ export default function StaffManagement() {
 
       {/* DIALOG: EDIT STAFF */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="border-slate-800 bg-slate-900 text-slate-100">
+        <DialogContent className="border-zinc-100 bg-white text-zinc-900">
           <DialogHeader>
             <DialogTitle>Editar Datos del Personal</DialogTitle>
-            <DialogDescription className="text-slate-400">
+            <DialogDescription className="text-zinc-500">
               Actualiza el nombre comercial o rol operativo del empleado.
             </DialogDescription>
           </DialogHeader>
@@ -466,7 +466,7 @@ export default function StaffManagement() {
                 id="edit-staff-name"
                 value={editFullName}
                 onChange={(e) => setEditFullName(e.target.value)}
-                className="border-slate-800 bg-slate-950/50"
+                className="border-zinc-200 bg-zinc-50"
               />
             </div>
 
@@ -476,10 +476,10 @@ export default function StaffManagement() {
                 value={editRole}
                 onValueChange={(val) => { if (val) setEditRole(val as 'admin' | 'cashier' | 'waiter' | 'cook') }}
               >
-                <SelectTrigger className="border-slate-800 bg-slate-950/50">
+                <SelectTrigger className="border-zinc-200 bg-zinc-50">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="border-slate-800 bg-slate-900 text-slate-100">
+                <SelectContent className="border-zinc-200 bg-white text-zinc-900">
                   <SelectItem value="waiter">Mesero</SelectItem>
                   <SelectItem value="cashier">Cajero</SelectItem>
                   <SelectItem value="cook">Cocinero</SelectItem>
@@ -488,19 +488,19 @@ export default function StaffManagement() {
               </Select>
             </div>
 
-            <DialogFooter className="pt-4 border-t border-slate-800/60">
+            <DialogFooter className="pt-4 border-t border-zinc-100">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setIsEditOpen(false)}
-                className="border-slate-800 text-slate-400 hover:bg-slate-850"
+                className="border-zinc-200 text-zinc-600 hover:bg-zinc-50"
                 disabled={updateMutation.isPending}
               >
                 Cancelar
               </Button>
               <Button
                 type="submit"
-                className="bg-emerald-500 text-slate-950 font-bold hover:bg-emerald-600"
+                className="bg-amber-500 hover:bg-amber-600 text-black font-semibold"
                 disabled={updateMutation.isPending}
               >
                 {updateMutation.isPending ? (
@@ -519,19 +519,19 @@ export default function StaffManagement() {
 
       {/* DIALOG: CONFIRM DELETE */}
       <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
-        <DialogContent className="border-slate-800 bg-slate-900 text-slate-100">
+        <DialogContent className="border-zinc-100 bg-white text-zinc-900">
           <DialogHeader>
-            <DialogTitle className="text-red-400">¿Remover Empleado?</DialogTitle>
-            <DialogDescription className="text-slate-400">
+            <DialogTitle className="text-red-600">¿Remover Empleado?</DialogTitle>
+            <DialogDescription className="text-zinc-500">
               ¿Estás seguro de que deseas eliminar la cuenta de <strong>{selectedStaff?.full_name}</strong>? Se desactivará su acceso al sistema de inmediato. Esta acción no se puede deshacer.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="pt-4 border-t border-slate-800/60">
+          <DialogFooter className="pt-4 border-t border-zinc-100">
             <Button
               type="button"
               variant="outline"
               onClick={() => setIsDeleteOpen(false)}
-              className="border-slate-800 text-slate-400 hover:bg-slate-850"
+              className="border-zinc-200 text-zinc-600 hover:bg-zinc-50"
               disabled={deleteMutation.isPending}
             >
               Cancelar
@@ -539,7 +539,7 @@ export default function StaffManagement() {
             <Button
               type="button"
               onClick={() => selectedStaff && deleteMutation.mutate(selectedStaff.id)}
-              className="bg-red-500 text-slate-955 font-bold hover:bg-red-650"
+              className="bg-red-500 hover:bg-red-600 text-white font-semibold"
               disabled={deleteMutation.isPending}
             >
               {deleteMutation.isPending ? (

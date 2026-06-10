@@ -11,6 +11,8 @@ import { Card, CardHeader, CardTitle, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { usePlanGuard } from '@/hooks/usePlanGuard'
+import { generateInvoicePDF } from '@/lib/pdf'
 import {
   Dialog,
   DialogContent,
@@ -84,10 +86,163 @@ interface OrderType {
   } | null
 }
 
+interface CashSessionType {
+  id: string
+  business_id: string
+  user_id: string
+  opening_amount: number
+  closing_amount: number | null
+  status: 'open' | 'closed'
+  opened_at: string
+  closed_at: string | null
+}
+
 export default function PosTerminal() {
   const { user, profile, signOut } = useAuth()
   const queryClient = useQueryClient()
   const supabase = createClient()
+
+  const { hasAccess } = usePlanGuard('pro')
+  const [clientName, setClientName] = useState('')
+  const [clientNit, setClientNit] = useState('')
+
+  const [checkoutOrder, setCheckoutOrder] = useState<OrderType | null>(null)
+  const [checkoutStep, setCheckoutStep] = useState<'payment' | 'billing'>('payment')
+  const [paymentMethod, setPaymentMethod] = useState<'qr' | 'cash'>('qr')
+
+  // Cash Session State
+  const [activeSession, setActiveSession] = useState<CashSessionType | null>(null)
+  const [loadingSession, setLoadingSession] = useState(true)
+  const [openingAmountInput, setOpeningAmountInput] = useState('')
+  const [isOpeningCaja, setIsOpeningCaja] = useState(false)
+
+  // Closing Session Modal State
+  const [isCloseSessionOpen, setIsCloseSessionOpen] = useState(false)
+  const [turnSales, setTurnSales] = useState(0)
+  const [loadingSales, setLoadingSales] = useState(false)
+  const [isClosingCaja, setIsClosingCaja] = useState(false)
+
+  useEffect(() => {
+    const checkSession = async () => {
+      if (!profile) return
+      if (profile.role !== 'cashier') {
+        setLoadingSession(false)
+        return
+      }
+      try {
+        const { data, error } = await supabase
+          .from('cash_sessions')
+          .select('*')
+          .eq('user_id', user?.id)
+          .eq('status', 'open')
+          .maybeSingle()
+
+        if (error) throw error
+        setActiveSession(data as CashSessionType)
+      } catch (err) {
+        console.error('Error checking cash session:', err)
+        toast.error('Error al verificar sesión de caja')
+      } finally {
+        setLoadingSession(false)
+      }
+    }
+
+    if (profile) {
+      checkSession()
+    }
+  }, [profile, user, supabase])
+
+  const handleOpenCaja = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const amount = parseFloat(openingAmountInput)
+    if (isNaN(amount) || amount < 0) {
+      toast.error('Por favor ingresa un monto válido')
+      return
+    }
+    if (!profile?.business_id || !user) {
+      toast.error('Perfil o negocio no válido')
+      return
+    }
+
+    setIsOpeningCaja(true)
+    try {
+      const { data, error } = await supabase
+        .from('cash_sessions')
+        .insert({
+          business_id: profile.business_id,
+          user_id: user.id,
+          opening_amount: amount,
+          status: 'open'
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+      setActiveSession(data as CashSessionType)
+      toast.success('Caja abierta correctamente')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Error al abrir la caja'
+      toast.error(msg)
+    } finally {
+      setIsOpeningCaja(false)
+    }
+  }
+
+  const fetchTurnSales = async () => {
+    if (!profile || !profile.business_id || !activeSession) return 0
+    const { data, error } = await supabase
+      .from('orders')
+      .select('total')
+      .eq('business_id', profile.business_id)
+      .eq('status', 'paid')
+      .gte('created_at', activeSession.opened_at)
+
+    if (error) {
+      console.error('Error fetching turn sales:', error)
+      return 0
+    }
+    return (data || []).reduce((sum, order) => sum + Number(order.total), 0)
+  }
+
+  const handleOpenCloseSessionModal = async () => {
+    if (!activeSession || !profile?.business_id) return
+    setLoadingSales(true)
+    try {
+      const sales = await fetchTurnSales()
+      setTurnSales(sales)
+      setIsCloseSessionOpen(true)
+    } catch {
+      toast.error('Error al calcular las ventas del turno')
+    } finally {
+      setLoadingSales(false)
+    }
+  }
+
+  const handleCloseCaja = async () => {
+    if (!activeSession) return
+    setIsClosingCaja(true)
+    try {
+      const closingAmount = Number(activeSession.opening_amount) + turnSales
+      const { error } = await supabase
+        .from('cash_sessions')
+        .update({
+          closing_amount: closingAmount,
+          status: 'closed',
+          closed_at: new Date().toISOString()
+        })
+        .eq('id', activeSession.id)
+
+      if (error) throw error
+      toast.success('Caja cerrada con éxito. Redirigiendo...')
+      setIsCloseSessionOpen(false)
+      await signOut()
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Error al cerrar la caja'
+      toast.error(msg)
+    } finally {
+      setIsClosingCaja(false)
+    }
+  }
 
   // Self-elevation of superadmin role if currently set to 'waiter' in DB
   useEffect(() => {
@@ -174,14 +329,47 @@ export default function PosTerminal() {
     }
   })
 
+  const handleCheckoutCleanup = () => {
+    setIsCheckoutOpen(false)
+    setSelectedTableId(null)
+    setClientName('')
+    setClientNit('')
+    setCheckoutOrder(null)
+    setCheckoutStep('payment')
+  }
+
+  const handleGenerateInvoice = () => {
+    if (checkoutOrder) {
+      generateInvoicePDF(checkoutOrder, clientName, clientNit)
+    }
+    handleCheckoutCleanup()
+    toast.success('Pago completado y factura generada con éxito.')
+  }
+
+  const handleSkipInvoice = () => {
+    handleCheckoutCleanup()
+    toast.success('Pago completado. Se omitió la facturación.')
+  }
+
+  const handleCheckoutOpenChange = (open: boolean) => {
+    if (!open) {
+      handleCheckoutCleanup()
+    } else {
+      setIsCheckoutOpen(true)
+    }
+  }
+
   const payMutation = useMutation({
     mutationFn: ({ orderId, amount }: { orderId: string; amount: number }) => completePayment(orderId, amount),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pos-orders'] })
       queryClient.invalidateQueries({ queryKey: ['pos-tables'] })
-      setIsCheckoutOpen(false)
-      setSelectedTableId(null)
-      toast.success('Pago completado. Mesa liberada e insumos reducidos.')
+      if (hasAccess) {
+        setCheckoutStep('billing')
+      } else {
+        handleCheckoutCleanup()
+        toast.success('Pago completado. Mesa liberada e insumos reducidos.')
+      }
     },
     onError: (err: Error) => {
       toast.error(err.message || 'Error al procesar el pago')
@@ -201,11 +389,11 @@ export default function PosTerminal() {
 
   // Generate QR code when checkout modal is opened
   useEffect(() => {
-    if (isCheckoutOpen && canvasRef.current && activeOrderForTable) {
+    if (isCheckoutOpen && checkoutStep === 'payment' && paymentMethod === 'qr' && canvasRef.current && checkoutOrder) {
       const qrPayload = {
-        order_id: activeOrderForTable.id,
-        amount: Number(activeOrderForTable.total),
-        business_id: activeOrderForTable.business_id,
+        order_id: checkoutOrder.id,
+        amount: Number(checkoutOrder.total),
+        business_id: checkoutOrder.business_id,
         app: 'Gastroledger QR Payment',
         created_at: new Date().toISOString()
       }
@@ -226,7 +414,7 @@ export default function PosTerminal() {
         }
       )
     }
-  }, [isCheckoutOpen, activeOrderForTable])
+  }, [isCheckoutOpen, checkoutStep, paymentMethod, checkoutOrder])
 
   // Cart operations
   const addToCart = (item: MenuItemType) => {
@@ -277,14 +465,17 @@ export default function PosTerminal() {
 
   const handleCheckout = () => {
     if (!activeOrderForTable) return
+    setCheckoutOrder(activeOrderForTable)
+    setCheckoutStep('payment')
+    setPaymentMethod('qr')
     setIsCheckoutOpen(true)
   }
 
   const simulateSuccessPayment = () => {
-    if (!activeOrderForTable) return
+    if (!checkoutOrder) return
     payMutation.mutate({
-      orderId: activeOrderForTable.id,
-      amount: Number(activeOrderForTable.total)
+      orderId: checkoutOrder.id,
+      amount: Number(checkoutOrder.total)
     })
   }
 
@@ -311,10 +502,77 @@ export default function PosTerminal() {
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase())
     return matchesCategory && matchesSearch
   })
-
-  // Calculations
+  // Calculations
   const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
   const tax = cartTotal - (cartTotal / 1.18)
+
+  if (loadingSession || loadingTables || loadingMenu) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-[#F8F8F9]">
+        <div className="text-center space-y-3">
+          <Loader2 className="h-10 w-10 animate-spin text-amber-500 mx-auto" />
+          <p className="text-sm text-zinc-500">Cargando terminal de ventas...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Cashier check: block if no session opened
+  if (profile?.role === 'cashier' && !activeSession) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-[#F8F8F9] px-4 font-[family-name:var(--font-inter)]">
+        <Card className="w-full max-w-md bg-white border border-zinc-100 shadow-sm rounded-2xl overflow-hidden p-8 space-y-6">
+          <div className="text-center space-y-2">
+            <h2 className="text-2xl font-bold text-zinc-900 font-[family-name:var(--font-sora)]">Apertura de Caja</h2>
+            <p className="text-sm text-zinc-500">
+              Ingresa el monto inicial para abrir la caja del turno y comenzar a vender.
+            </p>
+          </div>
+          <form onSubmit={handleOpenCaja} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="openingAmount" className="text-xs font-bold text-zinc-700">Monto Inicial (Bs.)</Label>
+              <Input
+                id="openingAmount"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="Ej. 100.00"
+                value={openingAmountInput}
+                onChange={(e) => setOpeningAmountInput(e.target.value)}
+                required
+                className="border-zinc-200 focus-visible:ring-amber-500 focus-visible:border-amber-500 text-zinc-900 placeholder-zinc-400 bg-white"
+              />
+            </div>
+            <div className="flex flex-col gap-2 pt-2">
+              <Button
+                type="submit"
+                disabled={isOpeningCaja}
+                className="bg-amber-500 text-black hover:bg-amber-600 font-semibold w-full cursor-pointer"
+              >
+                {isOpeningCaja ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Abriendo caja...
+                  </>
+                ) : (
+                  'Abrir Caja'
+                )}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => signOut()}
+                className="text-zinc-500 hover:text-zinc-700 cursor-pointer"
+              >
+                Cerrar Sesión
+              </Button>
+            </div>
+          </form>
+        </Card>
+      </div>
+    )
+  }
+
   return (
     <div className="flex h-screen w-full flex-col bg-zinc-50 text-zinc-900 overflow-hidden select-none font-[family-name:var(--font-inter)]">
       {/* POS Header */}
@@ -333,13 +591,26 @@ export default function PosTerminal() {
         </div>
 
         <div className="flex items-center space-x-4">
+          {profile?.role === 'cashier' && activeSession && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleOpenCloseSessionModal}
+              disabled={loadingSales}
+              className="text-xs font-bold border-red-200 text-red-650 hover:bg-red-50 hover:text-red-700 cursor-pointer flex items-center"
+            >
+              {loadingSales && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />}
+              Cerrar Caja
+            </Button>
+          )}
+
           <div className="flex items-center space-x-2 text-xs text-zinc-700 bg-zinc-50 px-3 py-1.5 rounded-lg border border-zinc-200">
             <User className="h-4 w-4 text-amber-500" />
             <span className="font-semibold">{profile?.full_name} ({profile?.role === 'cashier' ? 'Cajero' : 'Mesero'})</span>
           </div>
           <button
             onClick={() => signOut()}
-            className="rounded-lg p-2 text-zinc-500 hover:bg-red-50 hover:text-red-600 transition-all border border-transparent hover:border-red-200"
+            className="rounded-lg p-2 text-zinc-500 hover:bg-red-50 hover:text-red-650 transition-all border border-transparent hover:border-red-200 cursor-pointer"
             title="Cerrar sesión"
           >
             <LogOut className="h-4 w-4" />
@@ -532,10 +803,10 @@ export default function PosTerminal() {
                 </div>
 
                 <Button
-                  className="w-full bg-blue-600 hover:bg-blue-750 text-white font-bold"
+                  className="w-full bg-blue-600 hover:bg-blue-750 text-white font-bold animate-pulse hover:animate-none cursor-pointer"
                   onClick={handleCheckout}
                 >
-                  <QrCode className="h-4 w-4 mr-2" /> Cobrar Pedido (QR)
+                  <QrCode className="h-4 w-4 mr-2" /> Cobrar Pedido
                 </Button>
               </div>
             </div>
@@ -649,52 +920,221 @@ export default function PosTerminal() {
         </div>
       </div>
 
-      {/* QR MODAL DIALOG */}
-      <Dialog open={isCheckoutOpen} onOpenChange={setIsCheckoutOpen}>
+      {/* CHECKOUT MODAL DIALOG */}
+      <Dialog open={isCheckoutOpen} onOpenChange={handleCheckoutOpenChange}>
+        <DialogContent className="border-zinc-200 bg-white text-zinc-900 max-w-sm">
+          {checkoutOrder && (
+            <>
+              {checkoutStep === 'payment' ? (
+                <>
+                  <DialogHeader>
+                    <DialogTitle className="text-center text-lg font-[family-name:var(--font-sora)] font-bold text-zinc-900">
+                      Cobro de Pedido - Mesa {checkoutOrder.tables?.table_number || selectedTable?.table_number}
+                    </DialogTitle>
+                    <DialogDescription className="text-zinc-500 text-center text-xs font-[family-name:var(--font-inter)]">
+                      Selecciona el método de pago para completar la transacción.
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  {/* Payment Method Selector Tabs */}
+                  <div className="flex border border-zinc-200 rounded-xl p-1 bg-zinc-50/50 mt-4">
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod('qr')}
+                      className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                        paymentMethod === 'qr'
+                          ? 'bg-white text-zinc-900 border border-zinc-200 shadow-sm'
+                          : 'text-zinc-500 hover:text-zinc-800'
+                      }`}
+                    >
+                      <QrCode className="h-3.5 w-3.5" />
+                      Código QR
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod('cash')}
+                      className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                        paymentMethod === 'cash'
+                          ? 'bg-white text-zinc-900 border border-zinc-200 shadow-sm'
+                          : 'text-zinc-500 hover:text-zinc-800'
+                      }`}
+                    >
+                      <UtensilsCrossed className="h-3.5 w-3.5" />
+                      Efectivo
+                    </button>
+                  </div>
+
+                  <div className="flex flex-col items-center py-4 space-y-4">
+                    {paymentMethod === 'qr' ? (
+                      <>
+                        <div className="bg-white p-3 rounded-2xl shadow-md border border-zinc-100">
+                          <canvas ref={canvasRef} />
+                        </div>
+                        <p className="text-[10px] text-zinc-500 text-center max-w-[240px]">
+                          Escanea el código QR simulado para registrar el cobro digital.
+                        </p>
+                      </>
+                    ) : (
+                      <div className="w-full bg-zinc-50/50 border border-zinc-150 p-4 rounded-2xl text-center space-y-2">
+                        <div className="h-12 w-12 rounded-full bg-amber-500/10 text-amber-600 flex items-center justify-center mx-auto">
+                          <CheckCircle2 className="h-6 w-6" />
+                        </div>
+                        <h4 className="text-xs font-bold text-zinc-850">Pago Directo en Efectivo</h4>
+                        <p className="text-[10px] text-zinc-500 max-w-[200px] mx-auto">
+                          Confirma la transacción directamente en caja sin necesidad de escanear QR.
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="text-center space-y-1">
+                      <span className="text-xs text-zinc-450 font-bold uppercase tracking-wider">Total a Cobrar</span>
+                      <h3 className="text-2xl font-black text-zinc-900 font-[family-name:var(--font-sora)]">Bs. {Number(checkoutOrder.total).toFixed(2)}</h3>
+                      <p className="text-[10px] text-zinc-500">Mesa: {checkoutOrder.tables?.table_number || selectedTable?.table_number} • Pedido: {checkoutOrder.id.substring(0, 8).toUpperCase()}</p>
+                    </div>
+                  </div>
+
+                  <DialogFooter className="sm:justify-center border-t border-zinc-100 pt-4 flex flex-col gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleCheckoutCleanup}
+                      className="border-zinc-200 text-zinc-500 hover:bg-zinc-50 w-full cursor-pointer"
+                      disabled={payMutation.isPending}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={simulateSuccessPayment}
+                      className="bg-emerald-600 text-white font-bold hover:bg-emerald-700 w-full cursor-pointer"
+                      disabled={payMutation.isPending}
+                    >
+                      {payMutation.isPending ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Procesando...
+                        </>
+                      ) : paymentMethod === 'qr' ? (
+                        'Simular Pago QR'
+                      ) : (
+                        'Confirmar Pago Efectivo'
+                      )}
+                    </Button>
+                  </DialogFooter>
+                </>
+              ) : (
+                <>
+                  <DialogHeader>
+                    <DialogTitle className="text-center text-lg font-[family-name:var(--font-sora)] font-bold text-zinc-900">
+                      Datos de Facturación
+                    </DialogTitle>
+                    <DialogDescription className="text-zinc-500 text-center text-xs font-[family-name:var(--font-inter)]">
+                      Completa el NIT/CI y Razón Social del cliente para generar la factura.
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <div className="flex flex-col py-4 space-y-4">
+                    <div className="space-y-3 px-1">
+                      <div className="space-y-1">
+                        <Label htmlFor="clientName" className="text-xs font-bold text-zinc-700">Nombre de Cliente / Razón Social</Label>
+                        <Input
+                          id="clientName"
+                          placeholder="Ej. Juan Pérez"
+                          value={clientName}
+                          onChange={(e) => setClientName(e.target.value)}
+                          className="text-xs border-zinc-200 focus-visible:ring-amber-500 focus-visible:border-amber-500 text-zinc-900 bg-white"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="clientNit" className="text-xs font-bold text-zinc-700">NIT / CI</Label>
+                        <Input
+                          id="clientNit"
+                          placeholder="Ej. 12345678"
+                          value={clientNit}
+                          onChange={(e) => setClientNit(e.target.value)}
+                          className="text-xs border-zinc-200 focus-visible:ring-amber-500 focus-visible:border-amber-500 text-zinc-900 bg-white"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="text-center bg-zinc-50/50 p-3 rounded-xl border border-zinc-150 space-y-1">
+                      <span className="text-[10px] text-zinc-450 font-bold uppercase tracking-wider">Monto Cobrado</span>
+                      <h4 className="text-base font-black text-zinc-900">Bs. {Number(checkoutOrder.total).toFixed(2)}</h4>
+                    </div>
+                  </div>
+
+                  <DialogFooter className="sm:justify-center border-t border-zinc-100 pt-4 flex flex-col gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleSkipInvoice}
+                      className="border-zinc-200 text-zinc-500 hover:bg-zinc-50 w-full cursor-pointer"
+                    >
+                      Omitir Factura
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={handleGenerateInvoice}
+                      className="bg-amber-500 text-black font-bold hover:bg-amber-600 w-full cursor-pointer"
+                    >
+                      Generar Factura (PDF)
+                    </Button>
+                  </DialogFooter>
+                </>
+              )}
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* CLOSE CASHIER SESSION DIALOG */}
+      <Dialog open={isCloseSessionOpen} onOpenChange={setIsCloseSessionOpen}>
         <DialogContent className="border-zinc-200 bg-white text-zinc-900 max-w-sm">
           <DialogHeader>
-            <DialogTitle className="text-center text-lg font-[family-name:var(--font-sora)] font-bold text-zinc-900">Pago con QR - Mesa {selectedTable?.table_number}</DialogTitle>
+            <DialogTitle className="text-center text-lg font-[family-name:var(--font-sora)] font-bold text-zinc-900">Cierre de Caja</DialogTitle>
             <DialogDescription className="text-zinc-500 text-center text-xs font-[family-name:var(--font-inter)]">
-              Escanea el código QR generado para completar la transacción.
+              Confirmación del cierre de caja del turno actual.
             </DialogDescription>
           </DialogHeader>
 
-          {activeOrderForTable && (
-            <div className="flex flex-col items-center py-4 space-y-4">
-              <div className="bg-white p-3 rounded-2xl shadow-md border border-zinc-100">
-                <canvas ref={canvasRef} />
+          {activeSession && (
+            <div className="space-y-4 py-4 border-y border-zinc-100 text-sm">
+              <div className="flex justify-between">
+                <span className="text-zinc-500">Monto Inicial:</span>
+                <span className="font-bold text-zinc-800">Bs. {Number(activeSession.opening_amount).toFixed(2)}</span>
               </div>
-
-              <div className="text-center space-y-1">
-                <span className="text-xs text-zinc-450 font-bold uppercase tracking-wider">Total a Cobrar</span>
-                <h3 className="text-2xl font-black text-zinc-900 font-[family-name:var(--font-sora)]">${Number(activeOrderForTable.total).toFixed(2)}</h3>
-                <p className="text-[10px] text-zinc-500">Mesa: {selectedTable?.table_number} • Pedido: {activeOrderForTable.id.substring(0, 8).toUpperCase()}</p>
+              <div className="flex justify-between">
+                <span className="text-zinc-500">Ventas del Turno:</span>
+                <span className="font-bold text-zinc-850">Bs. {turnSales.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between border-t border-zinc-100 pt-3">
+                <span className="font-bold text-zinc-900">Total en Caja Estimado:</span>
+                <span className="font-black text-emerald-650">Bs. {(Number(activeSession.opening_amount) + turnSales).toFixed(2)}</span>
               </div>
             </div>
           )}
 
-          <DialogFooter className="sm:justify-center border-t border-zinc-100 pt-4 flex flex-col gap-2">
+          <DialogFooter className="sm:justify-center pt-2 flex flex-col gap-2">
             <Button
               type="button"
               variant="outline"
-              onClick={() => setIsCheckoutOpen(false)}
-              className="border-zinc-200 text-zinc-500 hover:bg-zinc-50 w-full"
-              disabled={payMutation.isPending}
+              onClick={() => setIsCloseSessionOpen(false)}
+              className="border-zinc-200 text-zinc-500 hover:bg-zinc-50 w-full cursor-pointer"
+              disabled={isClosingCaja}
             >
               Cancelar
             </Button>
             <Button
               type="button"
-              onClick={simulateSuccessPayment}
-              className="bg-emerald-600 text-white font-bold hover:bg-emerald-700 w-full"
-              disabled={payMutation.isPending}
+              onClick={handleCloseCaja}
+              className="bg-red-650 hover:bg-red-700 text-white font-bold w-full cursor-pointer"
+              disabled={isClosingCaja}
             >
-              {payMutation.isPending ? (
+              {isClosingCaja ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Procesando...
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Cerrando...
                 </>
               ) : (
-                'Simular Pago Exitoso'
+                'Confirmar Cierre y Salir'
               )}
             </Button>
           </DialogFooter>

@@ -230,12 +230,12 @@ export default function MenuManagement() {
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-white">Carta / Menú</h1>
-          <p className="text-slate-400 mt-1">Gestiona los platos y bebidas que ofreces a tus clientes.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-zinc-900 font-[family-name:var(--font-sora)]">Carta / Menú</h1>
+          <p className="text-zinc-500 mt-1">Gestiona los platos y bebidas que ofreces a tus clientes.</p>
         </div>
         <Button
           onClick={() => setIsCreateOpen(true)}
-          className="bg-emerald-500 text-slate-950 font-bold hover:bg-emerald-600 self-start"
+          className="bg-amber-500 hover:bg-amber-600 text-black font-semibold self-start"
         >
           <Plus className="mr-2 h-4 w-4" /> Agregar Plato / Bebida
         </Button>
@@ -249,8 +249,8 @@ export default function MenuManagement() {
             onClick={() => setActiveCategory(cat.id)}
             className={`rounded-xl px-4 py-2 text-xs font-semibold whitespace-nowrap transition-all border ${
               activeCategory === cat.id
-                ? 'bg-emerald-500 text-slate-950 border-emerald-500 shadow-md shadow-emerald-500/10'
-                : 'bg-slate-900 text-slate-400 border-slate-800 hover:border-slate-700'
+                ? 'bg-amber-500 text-black border-amber-500 shadow-md shadow-amber-500/10'
+                : 'bg-white text-zinc-500 border-zinc-200 hover:bg-zinc-50'
             }`}
           >
             {cat.name}
@@ -260,17 +260,17 @@ export default function MenuManagement() {
 
       {isLoading ? (
         <div className="flex h-64 items-center justify-center">
-          <Loader2 className="h-10 w-10 animate-spin text-emerald-500" />
+          <Loader2 className="h-10 w-10 animate-spin text-amber-500" />
         </div>
       ) : isError ? (
-        <div className="rounded-lg bg-red-500/10 p-4 text-center text-sm text-red-400 border border-red-500/20">
+        <div className="rounded-lg bg-red-50 p-4 text-center text-sm text-red-650 border border-red-200">
           Error al cargar la carta: {error.message}
         </div>
       ) : filteredItems?.length === 0 ? (
-        <div className="p-16 border border-dashed border-slate-800 rounded-2xl text-center text-slate-500">
-          <UtensilsCrossed className="h-10 w-10 text-slate-750 mx-auto mb-4" />
+        <div className="p-16 border border-dashed border-zinc-200 rounded-2xl text-center text-zinc-500 bg-zinc-50/50">
+          <UtensilsCrossed className="h-10 w-10 text-zinc-300 mx-auto mb-4" />
           <p className="text-sm font-semibold">No se encontraron ítems en esta categoría</p>
-          <p className="text-xs text-slate-650 mt-1">
+          <p className="text-xs text-zinc-400 mt-1">
             Puedes agregar un nuevo elemento haciendo clic en el botón de arriba.
           </p>
         </div>
@@ -279,10 +279,10 @@ export default function MenuManagement() {
           {filteredItems?.map((item) => (
             <Card
               key={item.id}
-              className="border-slate-800 bg-slate-900/40 relative overflow-hidden transition-all flex flex-col justify-between group hover:border-slate-700"
+              className="border-zinc-100 bg-white shadow-sm relative overflow-hidden transition-all flex flex-col justify-between group hover:border-zinc-300 hover:shadow-md"
             >
               {/* Image slot */}
-              <div className="h-40 w-full bg-slate-950/80 border-b border-slate-800/60 relative flex items-center justify-center text-slate-650 overflow-hidden">
+              <div className="h-40 w-full bg-zinc-50 border-b border-zinc-100 relative flex items-center justify-center text-slate-650 overflow-hidden">
                 {item.image_url ? (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img
@@ -291,35 +291,35 @@ export default function MenuManagement() {
                     className="object-cover h-full w-full group-hover:scale-105 transition-all duration-300"
                   />
                 ) : (
-                  <UtensilsCrossed className="h-12 w-12 text-slate-800" />
+                  <UtensilsCrossed className="h-12 w-12 text-zinc-200" />
                 )}
                 {/* Price chip */}
-                <span className="absolute top-3 right-3 bg-slate-900/90 text-white text-sm font-black tracking-tight px-3 py-1 rounded-lg border border-slate-800 backdrop-blur-md">
+                <span className="absolute top-3 right-3 bg-white/95 text-zinc-900 text-sm font-black tracking-tight px-3 py-1 rounded-lg border border-zinc-200 backdrop-blur-sm">
                   ${item.price.toFixed(2)}
                 </span>
               </div>
 
               <div>
                 <CardHeader className="p-4 pb-2">
-                  <div className="flex items-center space-x-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-400">
+                  <div className="flex items-center space-x-1.5 text-[10px] font-bold uppercase tracking-wider text-amber-600">
                     <Tag className="h-3 w-3" />
                     <span>{categoryLabels[item.category]}</span>
                   </div>
-                  <CardTitle className="text-base text-slate-200 mt-1">{item.name}</CardTitle>
+                  <CardTitle className="text-base text-zinc-900 mt-1">{item.name}</CardTitle>
                 </CardHeader>
                 <CardContent className="p-4 py-0">
-                  <p className="text-xs text-slate-400 line-clamp-2 min-h-[32px] leading-relaxed">
+                  <p className="text-xs text-zinc-500 line-clamp-2 min-h-[32px] leading-relaxed">
                     {item.description || 'Sin descripción disponible.'}
                   </p>
                 </CardContent>
               </div>
 
-              <CardFooter className="p-4 pt-4 border-t border-slate-800/40 mt-4 flex items-center justify-end space-x-2">
+              <CardFooter className="p-4 pt-4 border-t border-zinc-100 mt-4 flex items-center justify-end space-x-2">
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => handleEditClick(item)}
-                  className="h-8 text-slate-455 hover:text-slate-100 hover:bg-slate-800"
+                  className="h-8 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100"
                 >
                   <Edit2 className="h-3.5 w-3.5 mr-1" /> Editar
                 </Button>
@@ -327,7 +327,7 @@ export default function MenuManagement() {
                   variant="ghost"
                   size="sm"
                   onClick={() => handleDeleteClick(item)}
-                  className="h-8 text-slate-455 hover:text-red-400 hover:bg-red-500/10"
+                  className="h-8 text-zinc-400 hover:text-red-600 hover:bg-red-50"
                 >
                   <Trash2 className="h-3.5 w-3.5 mr-1" /> Eliminar
                 </Button>
@@ -339,10 +339,10 @@ export default function MenuManagement() {
 
       {/* DIALOG: CREATE ITEM */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="border-slate-800 bg-slate-900 text-slate-100">
+        <DialogContent className="border-zinc-100 bg-white text-zinc-900">
           <DialogHeader>
             <DialogTitle>Agregar Elemento al Menú</DialogTitle>
-            <DialogDescription className="text-slate-400">
+            <DialogDescription className="text-zinc-505">
               Ingresa los detalles del nuevo plato o bebida para la carta.
             </DialogDescription>
           </DialogHeader>
@@ -355,7 +355,7 @@ export default function MenuManagement() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Ej. Lomo Saltado"
-                  className="border-slate-800 bg-slate-950/50"
+                  className="border-zinc-200 bg-zinc-50"
                 />
               </div>
               <div className="space-y-1">
@@ -367,7 +367,7 @@ export default function MenuManagement() {
                   value={price}
                   onChange={(e) => setPrice(e.target.value)}
                   placeholder="Ej. 28.50"
-                  className="border-slate-800 bg-slate-950/50"
+                  className="border-zinc-200 bg-zinc-50"
                 />
               </div>
             </div>
@@ -379,10 +379,10 @@ export default function MenuManagement() {
                   value={category}
                   onValueChange={(val) => setCategory(val || 'plato-fondo')}
                 >
-                  <SelectTrigger className="border-slate-800 bg-slate-950/50">
+                  <SelectTrigger className="border-zinc-200 bg-zinc-50">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="border-slate-800 bg-slate-900 text-slate-100">
+                  <SelectContent className="border-zinc-200 bg-white text-zinc-900">
                     <SelectItem value="plato-fondo">Plato de Fondo</SelectItem>
                     <SelectItem value="entradas">Entrada</SelectItem>
                     <SelectItem value="bebidas">Bebida</SelectItem>
@@ -398,7 +398,7 @@ export default function MenuManagement() {
                   value={imageUrl}
                   onChange={(e) => setImageUrl(e.target.value)}
                   placeholder="https://ejemplo.com/foto.jpg"
-                  className="border-slate-800 bg-slate-950/50"
+                  className="border-zinc-200 bg-zinc-50"
                 />
               </div>
             </div>
@@ -410,23 +410,23 @@ export default function MenuManagement() {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Ingredientes clave o preparación..."
-                className="border-slate-800 bg-slate-950/50"
+                className="border-zinc-200 bg-zinc-50"
               />
             </div>
 
-            <DialogFooter className="pt-4 border-t border-slate-800/60">
+            <DialogFooter className="pt-4 border-t border-zinc-100">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setIsCreateOpen(false)}
-                className="border-slate-800 text-slate-400 hover:bg-slate-850"
+                className="border-zinc-200 text-zinc-600 hover:bg-zinc-50"
                 disabled={createMutation.isPending}
               >
                 Cancelar
               </Button>
               <Button
                 type="submit"
-                className="bg-emerald-500 text-slate-950 font-bold hover:bg-emerald-600"
+                className="bg-amber-500 hover:bg-amber-600 text-black font-semibold"
                 disabled={createMutation.isPending}
               >
                 {createMutation.isPending ? (
@@ -445,10 +445,10 @@ export default function MenuManagement() {
 
       {/* DIALOG: EDIT ITEM */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="border-slate-800 bg-slate-900 text-slate-100">
+        <DialogContent className="border-zinc-100 bg-white text-zinc-900">
           <DialogHeader>
             <DialogTitle>Editar Elemento del Menú</DialogTitle>
-            <DialogDescription className="text-slate-400">
+            <DialogDescription className="text-zinc-550">
               Modifica la información comercial del plato o bebida.
             </DialogDescription>
           </DialogHeader>
@@ -460,7 +460,7 @@ export default function MenuManagement() {
                   id="edit-item-name"
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
-                  className="border-slate-800 bg-slate-950/50"
+                  className="border-zinc-200 bg-zinc-50"
                 />
               </div>
               <div className="space-y-1">
@@ -471,7 +471,7 @@ export default function MenuManagement() {
                   step="0.01"
                   value={editPrice}
                   onChange={(e) => setEditPrice(e.target.value)}
-                  className="border-slate-800 bg-slate-950/50"
+                  className="border-zinc-200 bg-zinc-50"
                 />
               </div>
             </div>
@@ -483,10 +483,10 @@ export default function MenuManagement() {
                   value={editCategory}
                   onValueChange={(val) => setEditCategory(val || '')}
                 >
-                  <SelectTrigger className="border-slate-800 bg-slate-950/50">
+                  <SelectTrigger className="border-zinc-200 bg-zinc-50">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="border-slate-800 bg-slate-900 text-slate-100">
+                  <SelectContent className="border-zinc-200 bg-white text-zinc-900">
                     <SelectItem value="plato-fondo">Plato de Fondo</SelectItem>
                     <SelectItem value="entradas">Entrada</SelectItem>
                     <SelectItem value="bebidas">Bebida</SelectItem>
@@ -501,7 +501,7 @@ export default function MenuManagement() {
                   id="edit-item-img"
                   value={editImageUrl}
                   onChange={(e) => setEditImageUrl(e.target.value)}
-                  className="border-slate-800 bg-slate-950/50"
+                  className="border-zinc-200 bg-zinc-50"
                 />
               </div>
             </div>
@@ -512,23 +512,23 @@ export default function MenuManagement() {
                 id="edit-item-desc"
                 value={editDescription}
                 onChange={(e) => setEditDescription(e.target.value)}
-                className="border-slate-800 bg-slate-950/50"
+                className="border-zinc-200 bg-zinc-50"
               />
             </div>
 
-            <DialogFooter className="pt-4 border-t border-slate-800/60">
+            <DialogFooter className="pt-4 border-t border-zinc-100">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setIsEditOpen(false)}
-                className="border-slate-800 text-slate-400 hover:bg-slate-850"
+                className="border-zinc-200 text-zinc-600 hover:bg-zinc-50"
                 disabled={updateMutation.isPending}
               >
                 Cancelar
               </Button>
               <Button
                 type="submit"
-                className="bg-emerald-500 text-slate-950 font-bold hover:bg-emerald-600"
+                className="bg-amber-500 hover:bg-amber-600 text-black font-semibold"
                 disabled={updateMutation.isPending}
               >
                 {updateMutation.isPending ? (
@@ -547,19 +547,19 @@ export default function MenuManagement() {
 
       {/* DIALOG: CONFIRM DELETE */}
       <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
-        <DialogContent className="border-slate-800 bg-slate-900 text-slate-100">
+        <DialogContent className="border-zinc-100 bg-white text-zinc-900">
           <DialogHeader>
-            <DialogTitle className="text-red-400">¿Quitar Plato/Bebida?</DialogTitle>
-            <DialogDescription className="text-slate-400">
+            <DialogTitle className="text-red-650">¿Quitar Plato/Bebida?</DialogTitle>
+            <DialogDescription className="text-zinc-550">
               ¿Estás seguro de que deseas eliminar <strong>{selectedItem?.name}</strong> de la carta? Esta acción no se puede deshacer.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="pt-4 border-t border-slate-800/60">
+          <DialogFooter className="pt-4 border-t border-zinc-100">
             <Button
               type="button"
               variant="outline"
               onClick={() => setIsDeleteOpen(false)}
-              className="border-slate-800 text-slate-400 hover:bg-slate-850"
+              className="border-zinc-200 text-zinc-600 hover:bg-zinc-50"
               disabled={deleteMutation.isPending}
             >
               Cancelar
@@ -567,7 +567,7 @@ export default function MenuManagement() {
             <Button
               type="button"
               onClick={() => selectedItem && deleteMutation.mutate(selectedItem.id)}
-              className="bg-red-500 text-slate-955 font-bold hover:bg-red-650"
+              className="bg-red-500 hover:bg-red-655 text-white font-semibold"
               disabled={deleteMutation.isPending}
             >
               {deleteMutation.isPending ? (

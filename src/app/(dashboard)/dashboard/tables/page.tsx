@@ -189,12 +189,12 @@ export default function TablesManagement() {
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-white">Gestión de Mesas</h1>
-          <p className="text-slate-400 mt-1">Configura el aforo de tu salón y monitorea el estado en tiempo real.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-zinc-900 font-[family-name:var(--font-sora)]">Gestión de Mesas</h1>
+          <p className="text-zinc-500 mt-1">Configura el aforo de tu salón y monitorea el estado en tiempo real.</p>
         </div>
         <Button
           onClick={() => setIsCreateOpen(true)}
-          className="bg-emerald-500 text-slate-950 font-bold hover:bg-emerald-600 self-start"
+          className="bg-amber-500 hover:bg-amber-600 text-black font-semibold self-start"
         >
           <Plus className="mr-2 h-4 w-4" /> Agregar Mesa
         </Button>
@@ -202,27 +202,27 @@ export default function TablesManagement() {
 
       {/* Counts Grid */}
       <div className="grid gap-4 grid-cols-3">
-        <Card className="border-slate-800 bg-slate-900/40 backdrop-blur-sm">
+        <Card className="border-zinc-100 bg-white shadow-sm">
           <CardContent className="pt-6 text-center">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 block mb-1">Aforo Total</span>
-            <div className="text-3xl font-black text-slate-100">{totalTables}</div>
-            <p className="text-[10px] text-slate-500 mt-1">Mesas registradas en el salón</p>
+            <span className="text-xs font-semibold uppercase tracking-wider text-zinc-400 block mb-1">Aforo Total</span>
+            <div className="text-3xl font-black text-zinc-900 font-[family-name:var(--font-sora)]">{totalTables}</div>
+            <p className="text-[10px] text-zinc-400 mt-1">Mesas registradas en el salón</p>
           </CardContent>
         </Card>
 
-        <Card className="border-slate-800 bg-slate-900/40 backdrop-blur-sm">
+        <Card className="border-zinc-100 bg-white shadow-sm">
           <CardContent className="pt-6 text-center">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 block mb-1">Disponibles</span>
-            <div className="text-3xl font-black text-emerald-455">{freeTables}</div>
-            <p className="text-[10px] text-slate-500 mt-1">Listas para recibir clientes</p>
+            <span className="text-xs font-semibold uppercase tracking-wider text-zinc-400 block mb-1">Disponibles</span>
+            <div className="text-3xl font-black text-emerald-600 font-[family-name:var(--font-sora)]">{freeTables}</div>
+            <p className="text-[10px] text-zinc-400 mt-1">Listas para recibir clientes</p>
           </CardContent>
         </Card>
 
-        <Card className="border-slate-800 bg-slate-900/40 backdrop-blur-sm">
+        <Card className="border-zinc-100 bg-white shadow-sm">
           <CardContent className="pt-6 text-center">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 block mb-1">Ocupadas</span>
-            <div className="text-3xl font-black text-blue-400">{occupiedTables}</div>
-            <p className="text-[10px] text-slate-500 mt-1">Consumiendo activamente</p>
+            <span className="text-xs font-semibold uppercase tracking-wider text-zinc-400 block mb-1">Ocupadas</span>
+            <div className="text-3xl font-black text-blue-600 font-[family-name:var(--font-sora)]">{occupiedTables}</div>
+            <p className="text-[10px] text-zinc-400 mt-1">Consumiendo activamente</p>
           </CardContent>
         </Card>
       </div>
@@ -230,17 +230,17 @@ export default function TablesManagement() {
       {/* Tables Grid view */}
       {isLoading ? (
         <div className="flex h-64 items-center justify-center">
-          <Loader2 className="h-10 w-10 animate-spin text-emerald-500" />
+          <Loader2 className="h-10 w-10 animate-spin text-amber-500" />
         </div>
       ) : isError ? (
-        <div className="rounded-lg bg-red-500/10 p-4 text-center text-sm text-red-400 border border-red-500/20">
+        <div className="rounded-lg bg-red-50 p-4 text-center text-sm text-red-650 border border-red-200">
           Error al cargar mesas: {error.message}
         </div>
       ) : tables?.length === 0 ? (
-        <div className="p-16 border border-dashed border-slate-800 rounded-2xl text-center text-slate-500">
-          <Coffee className="h-10 w-10 text-slate-750 mx-auto mb-4" />
+        <div className="p-16 border border-dashed border-zinc-200 rounded-2xl text-center text-zinc-500 bg-zinc-50/50">
+          <Coffee className="h-10 w-10 text-zinc-300 mx-auto mb-4" />
           <p className="text-sm font-semibold">No hay mesas configuradas</p>
-          <p className="text-xs text-slate-655 mt-1">
+          <p className="text-xs text-zinc-400 mt-1">
             Puedes configurar las mesas de tu local haciendo clic en el botón de arriba.
           </p>
         </div>
@@ -251,7 +251,7 @@ export default function TablesManagement() {
             return (
               <Card
                 key={table.id}
-                className={`border-slate-800 bg-slate-900/40 transition-all flex flex-col justify-between overflow-hidden group ${
+                className={`border-zinc-100 bg-white shadow-sm transition-all flex flex-col justify-between overflow-hidden group ${
                   isFree
                     ? 'hover:border-emerald-500/50'
                     : 'hover:border-blue-500/50'
@@ -261,8 +261,8 @@ export default function TablesManagement() {
                 <div className={`h-1.5 w-full ${isFree ? 'bg-emerald-500' : 'bg-blue-500'}`} />
 
                 <CardHeader className="p-4 pb-2 text-center">
-                  <span className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Mesa</span>
-                  <CardTitle className="text-3xl font-black text-white mt-1">
+                  <span className="text-[10px] uppercase tracking-wider text-zinc-400 font-bold">Mesa</span>
+                  <CardTitle className="text-3xl font-black text-zinc-900 font-[family-name:var(--font-sora)] mt-1">
                     {table.table_number}
                   </CardTitle>
                 </CardHeader>
@@ -273,8 +273,8 @@ export default function TablesManagement() {
                     disabled={updateMutation.isPending}
                     className={`inline-flex items-center space-x-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase transition-all border ${
                       isFree
-                        ? 'bg-emerald-500/10 text-emerald-455 border-emerald-500/20 hover:bg-emerald-500/20'
-                        : 'bg-blue-500/10 text-blue-400 border-blue-500/20 hover:bg-blue-500/20'
+                        ? 'bg-emerald-55 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                        : 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
                     }`}
                   >
                     {isFree ? (
@@ -291,12 +291,12 @@ export default function TablesManagement() {
                   </button>
                 </CardContent>
 
-                <CardFooter className="p-2 border-t border-slate-800/40 mt-4 bg-slate-900/20 flex items-center justify-center space-x-1">
+                <CardFooter className="p-2 border-t border-zinc-100 mt-4 bg-zinc-50/30 flex items-center justify-center space-x-1">
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={() => handleEditClick(table)}
-                    className="h-8 w-8 text-slate-455 hover:text-slate-100 hover:bg-slate-800"
+                    className="h-8 w-8 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100"
                   >
                     <Edit2 className="h-3.5 w-3.5" />
                   </Button>
@@ -304,7 +304,7 @@ export default function TablesManagement() {
                     variant="ghost"
                     size="icon"
                     onClick={() => handleDeleteClick(table)}
-                    className="h-8 w-8 text-slate-455 hover:text-red-400 hover:bg-red-500/10"
+                    className="h-8 w-8 text-zinc-400 hover:text-red-655 hover:bg-red-50"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
@@ -317,10 +317,10 @@ export default function TablesManagement() {
 
       {/* DIALOG: CREATE TABLE */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="border-slate-800 bg-slate-900 text-slate-100">
+        <DialogContent className="border-zinc-100 bg-white text-zinc-900">
           <DialogHeader>
             <DialogTitle>Nueva Mesa</DialogTitle>
-            <DialogDescription className="text-slate-400">
+            <DialogDescription className="text-zinc-500">
               Registra un nuevo número de mesa para que los meseros puedan tomar comandas.
             </DialogDescription>
           </DialogHeader>
@@ -334,7 +334,7 @@ export default function TablesManagement() {
                   value={tableNumber}
                   onChange={(e) => setTableNumber(e.target.value)}
                   placeholder="Ej. 12"
-                  className="border-slate-800 bg-slate-950/50"
+                  className="border-zinc-200 bg-zinc-50"
                 />
               </div>
               <div className="space-y-1">
@@ -343,10 +343,10 @@ export default function TablesManagement() {
                   value={status}
                   onValueChange={(val) => { if (val) setStatus(val as 'free' | 'occupied') }}
                 >
-                  <SelectTrigger className="border-slate-800 bg-slate-950/50">
+                  <SelectTrigger className="border-zinc-200 bg-zinc-50">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="border-slate-800 bg-slate-900 text-slate-100">
+                  <SelectContent className="border-zinc-200 bg-white text-zinc-900">
                     <SelectItem value="free">Libre</SelectItem>
                     <SelectItem value="occupied">Ocupada</SelectItem>
                   </SelectContent>
@@ -354,19 +354,19 @@ export default function TablesManagement() {
               </div>
             </div>
 
-            <DialogFooter className="pt-4 border-t border-slate-800/60">
+            <DialogFooter className="pt-4 border-t border-zinc-100">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setIsCreateOpen(false)}
-                className="border-slate-800 text-slate-400 hover:bg-slate-850"
+                className="border-zinc-200 text-zinc-600 hover:bg-zinc-50"
                 disabled={createMutation.isPending}
               >
                 Cancelar
               </Button>
               <Button
                 type="submit"
-                className="bg-emerald-500 text-slate-955 font-bold hover:bg-emerald-600"
+                className="bg-amber-500 hover:bg-amber-600 text-black font-semibold"
                 disabled={createMutation.isPending}
               >
                 {createMutation.isPending ? (
@@ -385,10 +385,10 @@ export default function TablesManagement() {
 
       {/* DIALOG: EDIT TABLE */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="border-slate-800 bg-slate-900 text-slate-100">
+        <DialogContent className="border-zinc-100 bg-white text-zinc-900">
           <DialogHeader>
             <DialogTitle>Editar Mesa</DialogTitle>
-            <DialogDescription className="text-slate-400">
+            <DialogDescription className="text-zinc-500">
               Modifica los detalles de la mesa seleccionada.
             </DialogDescription>
           </DialogHeader>
@@ -401,7 +401,7 @@ export default function TablesManagement() {
                   type="number"
                   value={editTableNumber}
                   onChange={(e) => setEditTableNumber(e.target.value)}
-                  className="border-slate-800 bg-slate-950/50"
+                  className="border-zinc-200 bg-zinc-50"
                 />
               </div>
               <div className="space-y-1">
@@ -410,10 +410,10 @@ export default function TablesManagement() {
                   value={editStatus}
                   onValueChange={(val) => { if (val) setEditStatus(val as 'free' | 'occupied') }}
                 >
-                  <SelectTrigger className="border-slate-800 bg-slate-950/50">
+                  <SelectTrigger className="border-zinc-200 bg-zinc-50">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="border-slate-800 bg-slate-900 text-slate-100">
+                  <SelectContent className="border-zinc-200 bg-white text-zinc-900">
                     <SelectItem value="free">Libre</SelectItem>
                     <SelectItem value="occupied">Ocupada</SelectItem>
                   </SelectContent>
@@ -421,19 +421,19 @@ export default function TablesManagement() {
               </div>
             </div>
 
-            <DialogFooter className="pt-4 border-t border-slate-800/60">
+            <DialogFooter className="pt-4 border-t border-zinc-100">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setIsEditOpen(false)}
-                className="border-slate-800 text-slate-400 hover:bg-slate-850"
+                className="border-zinc-200 text-zinc-600 hover:bg-zinc-50"
                 disabled={updateMutation.isPending}
               >
                 Cancelar
               </Button>
               <Button
                 type="submit"
-                className="bg-emerald-500 text-slate-955 font-bold hover:bg-emerald-600"
+                className="bg-amber-500 hover:bg-amber-600 text-black font-semibold"
                 disabled={updateMutation.isPending}
               >
                 {updateMutation.isPending ? (
@@ -452,19 +452,19 @@ export default function TablesManagement() {
 
       {/* DIALOG: CONFIRM DELETE */}
       <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
-        <DialogContent className="border-slate-800 bg-slate-900 text-slate-100">
+        <DialogContent className="border-zinc-100 bg-white text-zinc-900">
           <DialogHeader>
-            <DialogTitle className="text-red-400">¿Eliminar Mesa?</DialogTitle>
-            <DialogDescription className="text-slate-400">
+            <DialogTitle className="text-red-600">¿Eliminar Mesa?</DialogTitle>
+            <DialogDescription className="text-zinc-500">
               ¿Estás seguro de que deseas eliminar la <strong>Mesa {selectedTable?.table_number}</strong>? Se quitará del panel y de la toma de comandas. Esta acción no se puede deshacer.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="pt-4 border-t border-slate-800/60">
+          <DialogFooter className="pt-4 border-t border-zinc-100">
             <Button
               type="button"
               variant="outline"
               onClick={() => setIsDeleteOpen(false)}
-              className="border-slate-800 text-slate-400 hover:bg-slate-850"
+              className="border-zinc-200 text-zinc-600 hover:bg-zinc-50"
               disabled={deleteMutation.isPending}
             >
               Cancelar
@@ -472,7 +472,7 @@ export default function TablesManagement() {
             <Button
               type="button"
               onClick={() => selectedTable && deleteMutation.mutate(selectedTable.id)}
-              className="bg-red-500 text-slate-955 font-bold hover:bg-red-650"
+              className="bg-red-500 hover:bg-red-650 text-white font-semibold"
               disabled={deleteMutation.isPending}
             >
               {deleteMutation.isPending ? (

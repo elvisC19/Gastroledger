@@ -11,6 +11,7 @@ interface AuthContextType {
   profile: Profile | null
   isLoading: boolean
   signOut: () => Promise<void>
+  plan: 'básico' | 'medio' | 'premium' | null
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -18,6 +19,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
+  const [plan, setPlan] = useState<'básico' | 'medio' | 'premium' | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
   const supabase = createClient()
@@ -35,6 +37,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             .eq('id', session.user.id)
             .single()
           setProfile(profileData as Profile)
+
+          let resolvedPlan: 'básico' | 'medio' | 'premium' | null = null
+          if (profileData?.business_id) {
+            const { data: businessData } = await supabase
+              .from('businesses')
+              .select('subscription_plan')
+              .eq('id', profileData.business_id)
+              .single()
+            if (businessData?.subscription_plan) {
+              const subPlan = businessData.subscription_plan
+              resolvedPlan = subPlan === 'essential' ? 'básico' : subPlan === 'pro' ? 'medio' : 'premium'
+            }
+          }
+          setPlan(resolvedPlan)
         }
       } catch (error) {
         console.error('Error fetching initial session:', error)
@@ -57,6 +73,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             .eq('id', session.user.id)
             .single()
           setProfile(profileData as Profile)
+
+          let resolvedPlan: 'básico' | 'medio' | 'premium' | null = null
+          if (profileData?.business_id) {
+            const { data: businessData } = await supabase
+              .from('businesses')
+              .select('subscription_plan')
+              .eq('id', profileData.business_id)
+              .single()
+            if (businessData?.subscription_plan) {
+              const subPlan = businessData.subscription_plan
+              resolvedPlan = subPlan === 'essential' ? 'básico' : subPlan === 'pro' ? 'medio' : 'premium'
+            }
+          }
+          setPlan(resolvedPlan)
           
           if (event === 'SIGNED_IN') {
             router.refresh()
@@ -64,6 +94,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } else {
           setUser(null)
           setProfile(null)
+          setPlan(null)
           if (event === 'SIGNED_OUT') {
             router.push('/login')
             router.refresh()
@@ -87,6 +118,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setUser(null)
       setProfile(null)
+      setPlan(null)
       router.push('/login')
       router.refresh()
       setIsLoading(false)
@@ -94,7 +126,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, profile, isLoading, signOut }}>
+    <AuthContext.Provider value={{ user, profile, plan, isLoading, signOut }}>
       {children}
     </AuthContext.Provider>
   )
