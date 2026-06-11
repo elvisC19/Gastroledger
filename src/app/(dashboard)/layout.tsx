@@ -237,9 +237,9 @@ export default function DashboardLayout({
               {/* User Dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger className="flex items-center space-x-2 rounded-full border border-zinc-100 bg-white p-1 pr-3 hover:bg-zinc-50 transition-all cursor-pointer">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-500/10 text-amber-600 text-xs font-bold">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-500/10 text-amber-600 text-xs font-bold">
                     {initials}
-                  </div>
+                  </span>
                   <span className="hidden text-sm font-medium text-zinc-700 md:inline-block font-[family-name:var(--font-inter)]">
                     {profile.full_name}
                   </span>
