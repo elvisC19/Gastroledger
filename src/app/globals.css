@@ -100,6 +100,7 @@
   --foreground-principal: #09090B;
   --foreground-secundario: #52525B;
   --foreground-muted: #A1A1AA;
+  --warn: #D97706;
 }
 
 @layer base {

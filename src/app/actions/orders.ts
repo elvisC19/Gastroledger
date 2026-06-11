@@ -62,7 +62,7 @@ export async function getOrders(statusFilters?: string[]) {
 
 export async function createOrder(data: {
   table_id: string
-  items: { menu_item_id: string; quantity: number; price_at_time: number }[]
+  items: { menu_item_id: string; quantity: number; price_at_time: number; notes?: string | null }[]
 }) {
   const { supabase, businessId, userId } = await checkAuth()
   if (!businessId) throw new Error('Identificador de negocio no encontrado')
@@ -92,7 +92,8 @@ export async function createOrder(data: {
     menu_item_id: item.menu_item_id,
     quantity: item.quantity,
     price_at_time: item.price_at_time,
-    status: 'pending'
+    status: 'pending',
+    notes: item.notes || null
   }))
 
   const { error: detailsErr } = await supabase

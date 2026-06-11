@@ -1,11 +1,13 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/components/providers/auth-provider'
 import { getTables } from '@/app/actions/tables'
 import { getMenuItems } from '@/app/actions/menu'
-import { getOrders, createOrder, completePayment, updateOrderDetailQuantity } from '@/app/actions/orders'
+import { getOrders, createOrder, completePayment, updateOrderDetailQuantity, updateKitchenStatus } from '@/app/actions/orders'
+import { getActiveAttendance, clockIn, clockOut } from '@/app/actions/attendance'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardHeader, CardTitle, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -22,6 +24,17 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import {
+  SidebarProvider,
+  Sidebar,
+  SidebarContent,
+  SidebarHeader,
+  SidebarFooter,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarTrigger,
+} from '@/components/ui/sidebar'
+import {
   UtensilsCrossed,
   ShoppingCart,
   Plus,
@@ -29,13 +42,14 @@ import {
   Trash2,
   LogOut,
   Building,
-  User,
   CheckCircle2,
   Search,
   Loader2,
   QrCode,
   Coffee,
-  Flame
+  Flame,
+  Pencil,
+  ChefHat
 } from 'lucide-react'
 import { toast } from 'sonner'
 import QRCode from 'qrcode'
@@ -50,6 +64,7 @@ interface MenuItemType {
 
 interface CartItem extends MenuItemType {
   quantity: number
+  notes?: string | null
 }
 
 interface TableType {
@@ -64,6 +79,7 @@ interface OrderDetailType {
   quantity: number
   price_at_time: number
   status: 'pending' | 'ready'
+  notes?: string | null
   menu_items: {
     name: string
     category: string
@@ -97,18 +113,74 @@ interface CashSessionType {
   closed_at: string | null
 }
 
+interface AttendanceType {
+  id: string
+  profile_id: string
+  business_id: string
+  date: string
+  clock_in: string
+  clock_out: string | null
+  total_hours: number | null
+}
+
 export default function PosTerminal() {
   const { user, profile, signOut } = useAuth()
   const queryClient = useQueryClient()
   const supabase = createClient()
+  const router = useRouter()
+
+  const handleClockIn = async () => {
+    setIsClocking(true)
+    try {
+      const active = await clockIn()
+      setActiveAttendance(active)
+      toast.success('Entrada de turno registrada correctamente.')
+    } catch (err) {
+      toast.error((err as Error).message || 'Error al registrar entrada')
+    } finally {
+      setIsClocking(false)
+    }
+  }
+
+  const handleClockOut = async () => {
+    setIsClocking(true)
+    try {
+      const closed = await clockOut()
+      setActiveAttendance(null)
+      toast.success(`Turno finalizado. Horas trabajadas: ${closed.total_hours} hrs.`)
+    } catch (err) {
+      toast.error((err as Error).message || 'Error al registrar salida')
+    } finally {
+      setIsClocking(false)
+    }
+  }
 
   const { hasAccess } = usePlanGuard('pro')
   const [clientName, setClientName] = useState('')
   const [clientNit, setClientNit] = useState('')
 
   const [checkoutOrder, setCheckoutOrder] = useState<OrderType | null>(null)
-  const [checkoutStep, setCheckoutStep] = useState<'payment' | 'billing'>('payment')
+  const [checkoutStep, setCheckoutStep] = useState<'payment' | 'billing' | 'success'>('payment')
   const [paymentMethod, setPaymentMethod] = useState<'qr' | 'cash'>('qr')
+
+  // Edit Note States
+  const [editingNoteItemId, setEditingNoteItemId] = useState<string | null>(null)
+  const [editingNoteText, setEditingNoteText] = useState('')
+
+  // Attendance states
+  const [activeAttendance, setActiveAttendance] = useState<AttendanceType | null>(null)
+  const [isClocking, setIsClocking] = useState(false)
+
+  // Load active attendance session
+  useEffect(() => {
+    async function loadAttendance() {
+      if (profile && (profile.role === 'waiter' || profile.role === 'cashier' || profile.role === 'cook')) {
+        const active = await getActiveAttendance()
+        setActiveAttendance(active)
+      }
+    }
+    loadAttendance()
+  }, [profile])
 
   // Cash Session State
   const [activeSession, setActiveSession] = useState<CashSessionType | null>(null)
@@ -342,12 +414,12 @@ export default function PosTerminal() {
     if (checkoutOrder) {
       generateInvoicePDF(checkoutOrder, clientName, clientNit)
     }
-    handleCheckoutCleanup()
+    setCheckoutStep('success')
     toast.success('Pago completado y factura generada con éxito.')
   }
 
   const handleSkipInvoice = () => {
-    handleCheckoutCleanup()
+    setCheckoutStep('success')
     toast.success('Pago completado. Se omitió la facturación.')
   }
 
@@ -367,12 +439,25 @@ export default function PosTerminal() {
       if (hasAccess) {
         setCheckoutStep('billing')
       } else {
-        handleCheckoutCleanup()
+        setCheckoutStep('success')
         toast.success('Pago completado. Mesa liberada e insumos reducidos.')
       }
     },
     onError: (err: Error) => {
       toast.error(err.message || 'Error al procesar el pago')
+    }
+  })
+
+  const sendToKitchenMutation = useMutation({
+    mutationFn: (orderId: string) => updateKitchenStatus(orderId, 'preparing'),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pos-orders'] })
+      queryClient.invalidateQueries({ queryKey: ['pos-tables'] })
+      handleCheckoutCleanup()
+      toast.success('Pedido enviado a cocina exitosamente')
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || 'Error al enviar a cocina')
     }
   })
 
@@ -470,7 +555,8 @@ export default function PosTerminal() {
       items: cart.map(item => ({
         menu_item_id: item.id,
         quantity: item.quantity,
-        price_at_time: item.price
+        price_at_time: item.price,
+        notes: item.notes || null
       }))
     })
   }
@@ -585,49 +671,144 @@ export default function PosTerminal() {
   }
 
   return (
-    <div className="flex h-screen w-full flex-col bg-zinc-50 text-zinc-900 overflow-hidden select-none font-[family-name:var(--font-inter)]">
-      {/* POS Header */}
-      <header className="flex h-16 shrink-0 items-center justify-between border-b border-zinc-100 bg-white px-6">
-        <div className="flex items-center space-x-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600">
-            <UtensilsCrossed className="h-5 w-5" />
-          </div>
-          <div>
-            <span className="font-bold tracking-tight text-zinc-900 block text-sm font-[family-name:var(--font-sora)]">Gastroledger Terminal POS</span>
-            <div className="flex items-center space-x-1.5 text-[10px] text-zinc-400">
-              <Building className="h-3 w-3 text-amber-500" />
-              <span>La Parrilla del Sol</span>
+    <SidebarProvider>
+      <div className="flex min-h-screen w-full bg-[#F8F8F9] text-zinc-900 font-[family-name:var(--font-inter)] select-none">
+        {/* Left Sidebar */}
+        <Sidebar className="border-r-0 bg-[#0F0F0F] text-zinc-400">
+          <SidebarHeader className="border-b border-zinc-800 p-5">
+            <div className="flex items-center space-x-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500 text-black">
+                <UtensilsCrossed className="h-5 w-5" />
+              </div>
+              <span className="font-bold tracking-tight text-base text-white font-[family-name:var(--font-sora)]">GastroLedger</span>
             </div>
-          </div>
-        </div>
+          </SidebarHeader>
 
-        <div className="flex items-center space-x-4">
-          {profile?.role === 'cashier' && activeSession && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleOpenCloseSessionModal}
-              disabled={loadingSales}
-              className="text-xs font-bold border-red-200 text-red-650 hover:bg-red-50 hover:text-red-700 cursor-pointer flex items-center"
-            >
-              {loadingSales && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />}
-              Cerrar Caja
-            </Button>
-          )}
+          <SidebarContent className="p-4 flex flex-col justify-between h-full">
+            <div className="space-y-6">
+              <div>
+                <p className="px-3 text-[10px] font-semibold tracking-[0.15em] uppercase text-zinc-600 mb-2">
+                  Navegación POS
+                </p>
+                <SidebarMenu className="space-y-1">
+                  <SidebarMenuItem>
+                    <SidebarMenuButton isActive={true} className="flex items-center space-x-3 h-9 px-3 rounded-md text-sm bg-amber-500/10 text-amber-400 font-medium border-l-2 border-amber-500 rounded-l-none cursor-pointer">
+                      <UtensilsCrossed className="h-4 w-4 shrink-0 text-amber-400" />
+                      <span>Pantalla POS</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  {profile?.role === 'admin' && (
+                    <SidebarMenuItem>
+                      <SidebarMenuButton 
+                        onClick={() => router.push('/dashboard')}
+                        className="flex items-center space-x-3 h-9 px-3 rounded-md text-sm bg-transparent text-zinc-500 hover:bg-white/5 hover:text-zinc-200 cursor-pointer"
+                      >
+                        <Building className="h-4 w-4 shrink-0 text-zinc-650" />
+                        <span>Volver al Dashboard</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )}
+                </SidebarMenu>
+              </div>
 
-          <div className="flex items-center space-x-2 text-xs text-zinc-700 bg-zinc-50 px-3 py-1.5 rounded-lg border border-zinc-200">
-            <User className="h-4 w-4 text-amber-500" />
-            <span className="font-semibold">{profile?.full_name} ({profile?.role === 'cashier' ? 'Cajero' : 'Mesero'})</span>
-          </div>
-          <button
-            onClick={() => signOut()}
-            className="rounded-lg p-2 text-zinc-500 hover:bg-red-50 hover:text-red-650 transition-all border border-transparent hover:border-red-200 cursor-pointer"
-            title="Cerrar sesión"
-          >
-            <LogOut className="h-4 w-4" />
-          </button>
-        </div>
-      </header>
+              {/* Attendance Shift Control */}
+              <div className="px-3 py-4 bg-zinc-900/50 border border-zinc-800/80 rounded-xl space-y-3">
+                <p className="text-[10px] font-bold tracking-[0.1em] uppercase text-zinc-500">
+                  Control de Turno
+                </p>
+                {!hasAccess ? (
+                  <div className="text-xs text-zinc-550 space-y-1 p-2.5 bg-zinc-950/40 rounded border border-zinc-850">
+                    <span className="font-bold block text-zinc-400">Control de Asistencia</span>
+                    <p className="text-[10px] text-zinc-500 mt-1 leading-normal">Actualiza a Pro para controlar horas de personal.</p>
+                  </div>
+                ) : activeAttendance ? (
+                  <div className="space-y-2">
+                    <div className="text-xs text-zinc-400 space-y-0.5">
+                      <span className="block text-[10px] uppercase font-bold text-emerald-500">Turno Activo</span>
+                      <span>Entrada: {new Date(activeAttendance.clock_in).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                    <Button
+                      onClick={handleClockOut}
+                      disabled={isClocking}
+                      className="w-full bg-red-650 hover:bg-red-700 text-white font-bold text-xs h-9 cursor-pointer"
+                    >
+                      {isClocking ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : null}
+                      SALIR DE TURNO
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-[10px] text-zinc-500 font-medium">No estás en turno actualmente.</p>
+                    <Button
+                      onClick={handleClockIn}
+                      disabled={isClocking}
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-black font-extrabold text-xs h-9 cursor-pointer"
+                    >
+                      {isClocking ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : null}
+                      ENTRAR A TURNO
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </SidebarContent>
+
+          <SidebarFooter className="border-t border-zinc-800 p-4">
+            <div className="flex items-center justify-between w-full">
+              <div className="flex items-center space-x-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-500/15 text-amber-600 text-xs font-bold shrink-0">
+                  {profile?.full_name ? profile.full_name.split(' ').filter(Boolean).map((n) => n[0]).join('').toUpperCase().slice(0, 2) : 'U'}
+                </div>
+                <div className="flex flex-col text-left">
+                  <span className="text-sm font-medium text-zinc-200 truncate max-w-[110px]">
+                    {profile?.full_name}
+                  </span>
+                  <span className="text-xs text-zinc-500 uppercase tracking-wider text-[9px] font-bold">
+                    {profile?.role === 'cashier' ? 'Cajero' : 'Mesero'}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => signOut()}
+                className="rounded-md p-1.5 text-zinc-650 hover:bg-red-500/10 hover:text-red-400 transition-all cursor-pointer"
+                title="Cerrar sesión"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
+            </div>
+          </SidebarFooter>
+        </Sidebar>
+
+        {/* Main Workspace Area */}
+        <div className="flex flex-col flex-1 w-full min-w-0">
+          {/* POS Header */}
+          <header className="flex h-16 shrink-0 items-center justify-between border-b border-zinc-100 bg-white px-6">
+            <div className="flex items-center space-x-3">
+              <SidebarTrigger className="text-zinc-500 hover:text-zinc-900 cursor-pointer" />
+              <div className="w-px h-4 bg-zinc-200"></div>
+              <div className="flex items-center space-x-2 text-zinc-800">
+                <Building className="h-4 w-4 text-amber-500" />
+                <span className="text-sm font-semibold text-zinc-800 font-[family-name:var(--font-inter)]">
+                  La Parrilla del Sol (Terminal POS)
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-4">
+              {profile?.role === 'cashier' && activeSession && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleOpenCloseSessionModal}
+                  disabled={loadingSales}
+                  className="text-xs font-bold border-red-200 text-red-650 hover:bg-red-50 hover:text-red-700 cursor-pointer flex items-center"
+                >
+                  {loadingSales && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />}
+                  Cerrar Caja
+                </Button>
+              )}
+            </div>
+          </header>
 
       {/* POS Main Content */}
       <div className="flex flex-1 w-full overflow-hidden">
@@ -798,31 +979,38 @@ export default function PosTerminal() {
               {/* Order items list */}
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
                 {activeOrderForTable.order_details.map((detail) => (
-                  <div key={detail.id} className="flex items-center justify-between bg-zinc-50/30 border border-zinc-100 p-3 rounded-xl">
-                    <div className="flex-1 pr-2">
-                      <h4 className="text-xs font-bold text-zinc-800 line-clamp-1">{detail.menu_items?.name}</h4>
-                      <span className="text-[10px] text-zinc-500 font-bold">Bs. {Number(detail.price_at_time).toFixed(2)} c/u</span>
-                    </div>
-                    <div className="flex items-center space-x-2 shrink-0">
-                      <div className="flex items-center border border-zinc-200 rounded-lg bg-white p-0.5">
-                        <button
-                          onClick={() => updateDetailQtyMutation.mutate({ detailId: detail.id, change: -1 })}
-                          disabled={updateDetailQtyMutation.isPending}
-                          className="p-1 hover:bg-zinc-100 rounded text-zinc-500 hover:text-zinc-900 cursor-pointer disabled:opacity-50"
-                        >
-                          <Minus className="h-3 w-3" />
-                        </button>
-                        <span className="px-1.5 text-xs font-bold text-zinc-700">{detail.quantity}</span>
-                        <button
-                          onClick={() => updateDetailQtyMutation.mutate({ detailId: detail.id, change: 1 })}
-                          disabled={updateDetailQtyMutation.isPending}
-                          className="p-1 hover:bg-zinc-100 rounded text-zinc-500 hover:text-zinc-900 cursor-pointer disabled:opacity-50"
-                        >
-                          <Plus className="h-3 w-3" />
-                        </button>
+                  <div key={detail.id} className="flex flex-col bg-zinc-50/30 border border-zinc-100 p-3 rounded-xl space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 pr-2">
+                        <h4 className="text-xs font-bold text-zinc-800 line-clamp-1">{detail.menu_items?.name}</h4>
+                        <span className="text-[10px] text-zinc-500 font-bold">Bs. {Number(detail.price_at_time).toFixed(2)} c/u</span>
                       </div>
-                      <span className={`h-2 w-2 rounded-full ${detail.status === 'ready' ? 'bg-emerald-400' : 'bg-zinc-300'}`} title={detail.status === 'ready' ? 'Listo' : 'Cocina'} />
+                      <div className="flex items-center space-x-2 shrink-0">
+                        <div className="flex items-center border border-zinc-200 rounded-lg bg-white p-0.5">
+                          <button
+                            onClick={() => updateDetailQtyMutation.mutate({ detailId: detail.id, change: -1 })}
+                            disabled={updateDetailQtyMutation.isPending}
+                            className="p-1 hover:bg-zinc-100 rounded text-zinc-500 hover:text-zinc-900 cursor-pointer disabled:opacity-50"
+                          >
+                            <Minus className="h-3 w-3" />
+                          </button>
+                          <span className="px-1.5 text-xs font-bold text-zinc-700">{detail.quantity}</span>
+                          <button
+                            onClick={() => updateDetailQtyMutation.mutate({ detailId: detail.id, change: 1 })}
+                            disabled={updateDetailQtyMutation.isPending}
+                            className="p-1 hover:bg-zinc-100 rounded text-zinc-500 hover:text-zinc-900 cursor-pointer disabled:opacity-50"
+                          >
+                            <Plus className="h-3 w-3" />
+                          </button>
+                        </div>
+                        <span className={`h-2 w-2 rounded-full ${detail.status === 'ready' ? 'bg-emerald-400' : 'bg-zinc-300'}`} title={detail.status === 'ready' ? 'Listo' : 'Cocina'} />
+                      </div>
                     </div>
+                    {detail.notes && (
+                      <div className="text-[10px] text-zinc-550 bg-zinc-100 px-2 py-0.5 rounded border border-zinc-200 w-fit">
+                        <span>⚠ {detail.notes}</span>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -878,27 +1066,54 @@ export default function PosTerminal() {
                     <div key={item.id} className="flex items-center justify-between bg-zinc-50/50 border border-zinc-100 p-3 rounded-xl">
                       <div className="flex-1 pr-2">
                         <h4 className="text-xs font-bold text-zinc-800 line-clamp-1">{item.name}</h4>
-                        <span className="text-[10px] text-zinc-500 font-bold">Bs. {item.price.toFixed(2)} c/u</span>
+                        <span className="text-[10px] text-zinc-500 font-bold block">Bs. {item.price.toFixed(2)} c/u</span>
+                        {item.notes ? (
+                          <div className="flex items-center gap-1 mt-1 text-[10px] text-amber-605 bg-amber-500/5 px-2 py-0.5 rounded border border-amber-500/10 w-fit">
+                            <span className="line-clamp-1">⚠ {item.notes}</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingNoteItemId(item.id)
+                                setEditingNoteText(item.notes || '')
+                              }}
+                              className="text-zinc-400 hover:text-amber-600 font-bold ml-1 cursor-pointer"
+                            >
+                              Editar
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingNoteItemId(item.id)
+                              setEditingNoteText('')
+                            }}
+                            className="text-[10px] text-zinc-450 hover:text-amber-600 flex items-center gap-1 mt-1 transition-all cursor-pointer"
+                          >
+                            <Pencil className="h-2.5 w-2.5" />
+                            <span>Agregar nota...</span>
+                          </button>
+                        )}
                       </div>
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-2 shrink-0">
                         <div className="flex items-center border border-zinc-200 rounded-lg bg-white p-0.5">
                           <button
                             onClick={() => updateQuantity(item.id, -1)}
-                            className="p-1 hover:bg-zinc-100 rounded text-zinc-500 hover:text-zinc-900"
+                            className="p-1 hover:bg-zinc-100 rounded text-zinc-500 hover:text-zinc-900 cursor-pointer"
                           >
                             <Minus className="h-3 w-3" />
                           </button>
                           <span className="px-2 text-xs font-bold text-zinc-700">{item.quantity}</span>
                           <button
                             onClick={() => updateQuantity(item.id, 1)}
-                            className="p-1 hover:bg-zinc-100 rounded text-zinc-500 hover:text-zinc-900"
+                            className="p-1 hover:bg-zinc-100 rounded text-zinc-500 hover:text-zinc-900 cursor-pointer"
                           >
                             <Plus className="h-3 w-3" />
                           </button>
                         </div>
                         <button
                           onClick={() => removeItem(item.id)}
-                          className="p-1.5 hover:bg-red-50 rounded-lg text-zinc-400 hover:text-red-650 transition-all"
+                          className="p-1.5 hover:bg-red-50 rounded-lg text-zinc-400 hover:text-red-650 transition-all cursor-pointer"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
@@ -1001,7 +1216,7 @@ export default function PosTerminal() {
                         </p>
                       </>
                     ) : (
-                      <div className="w-full bg-zinc-50/50 border border-zinc-150 p-4 rounded-2xl text-center space-y-2">
+                      <div className="w-full bg-zinc-50/50 border border-zinc-155 p-4 rounded-2xl text-center space-y-2">
                         <div className="h-12 w-12 rounded-full bg-amber-500/10 text-amber-600 flex items-center justify-center mx-auto">
                           <CheckCircle2 className="h-6 w-6" />
                         </div>
@@ -1013,7 +1228,7 @@ export default function PosTerminal() {
                     )}
 
                     <div className="text-center space-y-1">
-                      <span className="text-xs text-zinc-450 font-bold uppercase tracking-wider">Total a Cobrar</span>
+                      <span className="text-xs text-zinc-455 font-bold uppercase tracking-wider">Total a Cobrar</span>
                       <h3 className="text-2xl font-black text-zinc-900 font-[family-name:var(--font-sora)]">Bs. {Number(checkoutOrder.total).toFixed(2)}</h3>
                       <p className="text-[10px] text-zinc-500">Mesa: {checkoutOrder.tables?.table_number || selectedTable?.table_number} • Pedido: {checkoutOrder.id.substring(0, 8).toUpperCase()}</p>
                     </div>
@@ -1047,7 +1262,7 @@ export default function PosTerminal() {
                     </Button>
                   </DialogFooter>
                 </>
-              ) : (
+              ) : checkoutStep === 'billing' ? (
                 <>
                   <DialogHeader>
                     <DialogTitle className="text-center text-lg font-[family-name:var(--font-sora)] font-bold text-zinc-900">
@@ -1106,9 +1321,108 @@ export default function PosTerminal() {
                     </Button>
                   </DialogFooter>
                 </>
+              ) : (
+                <>
+                  <DialogHeader>
+                    <DialogTitle className="text-center text-lg font-[family-name:var(--font-sora)] font-bold text-zinc-900">
+                      ¡Pago Exitoso!
+                    </DialogTitle>
+                    <DialogDescription className="text-zinc-500 text-center text-xs font-[family-name:var(--font-inter)]">
+                      El pago se ha registrado y la mesa ha sido liberada.
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <div className="flex flex-col items-center py-6 space-y-4">
+                    <div className="h-16 w-16 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+                      <CheckCircle2 className="h-10 w-10 animate-bounce" />
+                    </div>
+                    <div className="text-center">
+                      <p className="text-sm font-semibold text-zinc-700">Monto: Bs. {Number(checkoutOrder.total).toFixed(2)}</p>
+                      <p className="text-[10px] text-zinc-400 mt-2 font-medium">¿Deseas enviar este pedido a la pantalla de cocina ahora?</p>
+                    </div>
+                  </div>
+
+                  <DialogFooter className="sm:justify-center border-t border-zinc-100 pt-4 flex flex-col gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleCheckoutCleanup}
+                      className="border-zinc-200 text-zinc-500 hover:bg-zinc-50 w-full cursor-pointer"
+                      disabled={sendToKitchenMutation.isPending}
+                    >
+                      Finalizar sin enviar
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={() => sendToKitchenMutation.mutate(checkoutOrder.id)}
+                      className="bg-amber-500 text-black font-bold hover:bg-amber-600 w-full cursor-pointer flex items-center justify-center gap-1.5"
+                      disabled={sendToKitchenMutation.isPending}
+                    >
+                      {sendToKitchenMutation.isPending ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Enviando...
+                        </>
+                      ) : (
+                        <>
+                          <ChefHat className="h-4 w-4" />
+                          Enviar a cocina
+                        </>
+                      )}
+                    </Button>
+                  </DialogFooter>
+                </>
               )}
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* EDIT NOTE DIALOG */}
+      <Dialog open={editingNoteItemId !== null} onOpenChange={(open) => { if (!open) setEditingNoteItemId(null) }}>
+        <DialogContent className="border-zinc-200 bg-white text-zinc-900 max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-[family-name:var(--font-sora)] font-bold text-zinc-900">
+              Observaciones del Producto
+            </DialogTitle>
+            <DialogDescription className="text-zinc-500 text-xs">
+              Agrega instrucciones especiales para la preparación (ej. sin papas, sin salsa).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-3">
+            <Input
+              value={editingNoteText}
+              onChange={(e) => setEditingNoteText(e.target.value)}
+              placeholder="Ej. sin papas, sin salsa"
+              className="text-xs border-zinc-200 focus-visible:ring-amber-500 focus-visible:border-amber-500 text-zinc-900 bg-white"
+              autoFocus
+            />
+          </div>
+          <DialogFooter className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setEditingNoteItemId(null)}
+              className="border-zinc-200 text-zinc-500 hover:bg-zinc-50 flex-1 cursor-pointer"
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                if (editingNoteItemId) {
+                  setCart(prev => prev.map(item =>
+                    item.id === editingNoteItemId ? { ...item, notes: editingNoteText || null } : item
+                  ))
+                  setEditingNoteItemId(null)
+                  setEditingNoteText('')
+                }
+              }}
+              className="bg-amber-500 text-black font-bold hover:bg-amber-600 flex-1 cursor-pointer"
+            >
+              Guardar Nota
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -1166,6 +1480,8 @@ export default function PosTerminal() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+        </div>
+      </div>
+    </SidebarProvider>
   )
 }

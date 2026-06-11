@@ -1,17 +1,30 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/components/providers/auth-provider'
 import { getOrders, updateKitchenStatus, updateOrderItemStatus } from '@/app/actions/orders'
+import { getActiveAttendance, clockIn, clockOut } from '@/app/actions/attendance'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardHeader, CardFooter, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { usePlanGuard } from '@/hooks/usePlanGuard'
+import {
+  SidebarProvider,
+  Sidebar,
+  SidebarContent,
+  SidebarHeader,
+  SidebarFooter,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarTrigger,
+} from '@/components/ui/sidebar'
 import {
   Clock,
   LogOut,
   Building,
-  User,
   Check,
   Flame,
   ChefHat,
@@ -27,6 +40,7 @@ interface OrderDetailType {
   quantity: number
   price_at_time: number
   status: 'pending' | 'ready'
+  notes?: string | null
   menu_items: {
     name: string
     category: string
@@ -49,11 +63,64 @@ interface OrderType {
   } | null
 }
 
+interface AttendanceType {
+  id: string
+  profile_id: string
+  business_id: string
+  date: string
+  clock_in: string
+  clock_out: string | null
+  total_hours: number | null
+}
+
 export default function KitchenDisplay() {
   const { profile, signOut } = useAuth()
   const queryClient = useQueryClient()
   const supabase = createClient()
+  const router = useRouter()
+  const { hasAccess } = usePlanGuard('pro')
   const [, setTimeTracker] = useState(0)
+
+  // Attendance states
+  const [activeAttendance, setActiveAttendance] = useState<AttendanceType | null>(null)
+  const [isClocking, setIsClocking] = useState(false)
+
+  // Fetch active shift on mount
+  useEffect(() => {
+    async function loadAttendance() {
+      if (profile && (profile.role === 'waiter' || profile.role === 'cashier' || profile.role === 'cook')) {
+        const active = await getActiveAttendance()
+        setActiveAttendance(active)
+      }
+    }
+    loadAttendance()
+  }, [profile])
+
+  const handleClockIn = async () => {
+    setIsClocking(true)
+    try {
+      const active = await clockIn()
+      setActiveAttendance(active)
+      toast.success('Entrada de turno registrada correctamente.')
+    } catch (err) {
+      toast.error((err as Error).message || 'Error al registrar entrada')
+    } finally {
+      setIsClocking(false)
+    }
+  }
+
+  const handleClockOut = async () => {
+    setIsClocking(true)
+    try {
+      const closed = await clockOut()
+      setActiveAttendance(null)
+      toast.success(`Turno finalizado. Horas trabajadas: ${closed.total_hours} hrs.`)
+    } catch (err) {
+      toast.error((err as Error).message || 'Error al registrar salida')
+    } finally {
+      setIsClocking(false)
+    }
+  }
 
   // Force re-renders every 30 seconds to update the "elapsed minutes" timer
   useEffect(() => {
@@ -132,46 +199,141 @@ export default function KitchenDisplay() {
   }
 
   return (
-    <div className="flex h-screen w-full flex-col bg-zinc-50 text-zinc-900 overflow-hidden select-none font-[family-name:var(--font-inter)]">
-      {/* Kitchen Header */}
-      <header className="flex h-16 shrink-0 items-center justify-between border-b border-zinc-100 bg-white px-6">
-        <div className="flex items-center space-x-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600">
-            <ChefHat className="h-5 w-5" />
-          </div>
-          <div>
-            <span className="font-bold tracking-tight text-zinc-900 block text-sm font-[family-name:var(--font-sora)]">Gastroledger KDS Cocina</span>
-            <div className="flex items-center space-x-1.5 text-[10px] text-zinc-400">
-              <Building className="h-3 w-3 text-amber-500" />
-              <span>La Parrilla del Sol (Kitchen Display)</span>
+    <SidebarProvider>
+      <div className="flex min-h-screen w-full bg-[#F8F8F9] text-zinc-900 font-[family-name:var(--font-inter)] select-none">
+        {/* Left Sidebar */}
+        <Sidebar className="border-r-0 bg-[#0F0F0F] text-zinc-400">
+          <SidebarHeader className="border-b border-zinc-800 p-5">
+            <div className="flex items-center space-x-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500 text-black">
+                <ChefHat className="h-5 w-5" />
+              </div>
+              <span className="font-bold tracking-tight text-base text-white font-[family-name:var(--font-sora)]">GastroLedger</span>
             </div>
-          </div>
-        </div>
+          </SidebarHeader>
 
-        <div className="flex items-center space-x-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => refetch()}
-            className="h-8 w-8 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100"
-            title="Refrescar comanda"
-          >
-            <RefreshCw className="h-4 w-4" />
-          </Button>
+          <SidebarContent className="p-4 flex flex-col justify-between h-full">
+            <div className="space-y-6">
+              <div>
+                <p className="px-3 text-[10px] font-semibold tracking-[0.15em] uppercase text-zinc-600 mb-2">
+                  Navegación Cocina
+                </p>
+                <SidebarMenu className="space-y-1">
+                  <SidebarMenuItem>
+                    <SidebarMenuButton isActive={true} className="flex items-center space-x-3 h-9 px-3 rounded-md text-sm bg-amber-500/10 text-amber-400 font-medium border-l-2 border-amber-500 rounded-l-none cursor-pointer">
+                      <ChefHat className="h-4 w-4 shrink-0 text-amber-400" />
+                      <span>Pantalla Cocina</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  {profile?.role === 'admin' && (
+                    <SidebarMenuItem>
+                      <SidebarMenuButton 
+                        onClick={() => router.push('/dashboard')}
+                        className="flex items-center space-x-3 h-9 px-3 rounded-md text-sm bg-transparent text-zinc-500 hover:bg-white/5 hover:text-zinc-200 cursor-pointer"
+                      >
+                        <Building className="h-4 w-4 shrink-0 text-zinc-600" />
+                        <span>Volver al Dashboard</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )}
+                </SidebarMenu>
+              </div>
 
-          <div className="flex items-center space-x-2 text-xs text-zinc-700 bg-zinc-50 px-3 py-1.5 rounded-lg border border-zinc-200">
-            <User className="h-4 w-4 text-amber-500" />
-            <span className="font-semibold">{profile?.full_name} (Cocinero)</span>
-          </div>
-          <button
-            onClick={() => signOut()}
-            className="rounded-lg p-2 text-zinc-500 hover:bg-red-50 hover:text-red-650 transition-all border border-transparent hover:border-red-200"
-            title="Cerrar sesión"
-          >
-            <LogOut className="h-4.5 w-4.5" />
-          </button>
-        </div>
-      </header>
+              {/* Attendance Shift Control */}
+              <div className="px-3 py-4 bg-zinc-900/50 border border-zinc-800/80 rounded-xl space-y-3">
+                <p className="text-[10px] font-bold tracking-[0.1em] uppercase text-zinc-500">
+                  Control de Turno
+                </p>
+                {!hasAccess ? (
+                  <div className="text-xs text-zinc-555 space-y-1 p-2.5 bg-zinc-950/40 rounded border border-zinc-850">
+                    <span className="font-bold block text-zinc-400">Control de Asistencia</span>
+                    <p className="text-[10px] text-zinc-500 mt-1 leading-normal">Actualiza a Pro para controlar horas de personal.</p>
+                  </div>
+                ) : activeAttendance ? (
+                  <div className="space-y-2">
+                    <div className="text-xs text-zinc-400 space-y-0.5">
+                      <span className="block text-[10px] uppercase font-bold text-emerald-500">Turno Activo</span>
+                      <span>Entrada: {new Date(activeAttendance.clock_in).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                    <Button
+                      onClick={handleClockOut}
+                      disabled={isClocking}
+                      className="w-full bg-red-650 hover:bg-red-700 text-white font-bold text-xs h-9 cursor-pointer"
+                    >
+                      {isClocking ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : null}
+                      SALIR DE TURNO
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-[10px] text-zinc-500 font-medium">No estás en turno actualmente.</p>
+                    <Button
+                      onClick={handleClockIn}
+                      disabled={isClocking}
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-black font-extrabold text-xs h-9 cursor-pointer"
+                    >
+                      {isClocking ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : null}
+                      ENTRAR A TURNO
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </SidebarContent>
+
+          <SidebarFooter className="border-t border-zinc-800 p-4">
+            <div className="flex items-center justify-between w-full">
+              <div className="flex items-center space-x-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-500/15 text-amber-600 text-xs font-bold shrink-0">
+                  {profile?.full_name ? profile.full_name.split(' ').filter(Boolean).map((n) => n[0]).join('').toUpperCase().slice(0, 2) : 'U'}
+                </div>
+                <div className="flex flex-col text-left">
+                  <span className="text-sm font-medium text-zinc-200 truncate max-w-[110px]">
+                    {profile?.full_name}
+                  </span>
+                  <span className="text-xs text-zinc-500 uppercase tracking-wider text-[9px] font-bold">
+                    Cocinero
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => signOut()}
+                className="rounded-md p-1.5 text-zinc-650 hover:bg-red-500/10 hover:text-red-400 transition-all cursor-pointer"
+                title="Cerrar sesión"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
+            </div>
+          </SidebarFooter>
+        </Sidebar>
+
+        {/* Main Workspace Area */}
+        <div className="flex flex-col flex-1 w-full min-w-0">
+          {/* Kitchen Header */}
+          <header className="flex h-16 shrink-0 items-center justify-between border-b border-zinc-100 bg-white px-6">
+            <div className="flex items-center space-x-3">
+              <SidebarTrigger className="text-zinc-500 hover:text-zinc-900 cursor-pointer" />
+              <div className="w-px h-4 bg-zinc-200"></div>
+              <div className="flex items-center space-x-2 text-zinc-800">
+                <Building className="h-4 w-4 text-amber-500" />
+                <span className="text-sm font-semibold text-zinc-800 font-[family-name:var(--font-inter)]">
+                  La Parrilla del Sol (Kitchen KDS)
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-4">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => refetch()}
+                className="h-8 w-8 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 cursor-pointer"
+                title="Refrescar comanda"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            </div>
+          </header>
 
       {/* Kitchen Main Body */}
       <div className="flex-1 overflow-y-auto p-6 bg-zinc-50">
@@ -257,33 +419,40 @@ export default function KitchenDisplay() {
                               onClick={() => handleItemCheck(detail.id, detail.status)}
                               className="group flex flex-col cursor-pointer pb-2.5 border-b border-zinc-100 last:border-0 last:pb-0"
                             >
-                              <div className="flex items-start justify-between">
-                                <div className="flex items-center space-x-2.5 flex-1 pr-2">
-                                  <button
-                                    type="button"
-                                    className={`h-4.5 w-4.5 rounded flex items-center justify-center border transition-all shrink-0 ${
-                                      isItemReady
-                                        ? 'bg-emerald-500 border-emerald-500 text-black'
-                                        : 'border-zinc-300 bg-white group-hover:border-zinc-450'
-                                    }`}
-                                  >
-                                    {isItemReady && <Check className="h-3 w-3 stroke-[3]" />}
-                                  </button>
-                                  <span className={`text-sm font-semibold transition-all ${
-                                    isItemReady 
-                                      ? 'text-zinc-400 line-through' 
-                                      : 'text-zinc-800 group-hover:text-zinc-950'
+                              <div className="flex flex-col space-y-1 w-full">
+                                <div className="flex items-start justify-between">
+                                  <div className="flex items-center space-x-2.5 flex-1 pr-2">
+                                    <button
+                                      type="button"
+                                      className={`h-4.5 w-4.5 rounded flex items-center justify-center border transition-all shrink-0 ${
+                                        isItemReady
+                                          ? 'bg-emerald-500 border-emerald-500 text-black'
+                                          : 'border-zinc-300 bg-white group-hover:border-zinc-450'
+                                      }`}
+                                    >
+                                      {isItemReady && <Check className="h-3 w-3 stroke-[3]" />}
+                                    </button>
+                                    <span className={`text-sm font-semibold transition-all ${
+                                      isItemReady 
+                                        ? 'text-zinc-400 line-through' 
+                                        : 'text-zinc-800 group-hover:text-zinc-950'
+                                    }`}>
+                                      {detail.menu_items?.name}
+                                    </span>
+                                  </div>
+                                  <span className={`rounded px-2.5 py-0.5 text-xs font-bold transition-all border ${
+                                    isItemReady
+                                      ? 'bg-zinc-50 text-zinc-400 border-zinc-100'
+                                      : 'bg-zinc-100 text-zinc-800 border-zinc-200'
                                   }`}>
-                                    {detail.menu_items?.name}
+                                    x{detail.quantity}
                                   </span>
                                 </div>
-                                <span className={`rounded px-2.5 py-0.5 text-xs font-bold transition-all border ${
-                                  isItemReady
-                                    ? 'bg-zinc-50 text-zinc-400 border-zinc-100'
-                                    : 'bg-zinc-100 text-zinc-800 border-zinc-200'
-                                }`}>
-                                  x{detail.quantity}
-                                </span>
+                                {detail.notes && (
+                                  <div className="text-[11px] font-bold pl-7 text-[var(--warn)]">
+                                    ⚠ {detail.notes}
+                                  </div>
+                                )}
                               </div>
                             </li>
                           )
@@ -323,5 +492,7 @@ export default function KitchenDisplay() {
         )}
       </div>
     </div>
-  )
+   </div>
+  </SidebarProvider>
+ )
 }
