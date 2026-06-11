@@ -764,7 +764,7 @@ export default function SuperAdminDashboard() {
                     </SelectTrigger>
                     <SelectContent className="border-zinc-200 bg-white text-zinc-900">
                       <SelectItem value="restaurante">Restaurante</SelectItem>
-                      <SelectItem value="polleria">Pollería</SelectItem>
+                      {/* <SelectItem value="polleria">Pollería</SelectItem> */}
                       <SelectItem value="cafeteria">Cafetería</SelectItem>
                     </SelectContent>
                   </Select>
@@ -902,7 +902,7 @@ export default function SuperAdminDashboard() {
                   </SelectTrigger>
                   <SelectContent className="border-zinc-200 bg-white text-zinc-900">
                     <SelectItem value="restaurante">Restaurante</SelectItem>
-                    <SelectItem value="polleria">Pollería</SelectItem>
+                    {/* <SelectItem value="polleria">Pollería</SelectItem> */}
                     <SelectItem value="cafeteria">Cafetería</SelectItem>
                   </SelectContent>
                 </Select>
